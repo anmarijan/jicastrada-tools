@@ -231,23 +231,15 @@ void CalcAOD::zero_plus(){
 ////////////////////////////////////////////////////////////////////////////////
 bool CalcAOD::calc_fratar(char* fname)
 {
-	FILE* fp;
 	StradaGAD gad;
 	fratar frt;
 
     if( aod1.nZone < 2 ) return false;
-
-	if( (fp = fopen(fname , "rt")) != NULL )
-	{
-		int ret = gad.Read(fp);
-		if( ret < 0 ) {
-            sprintf(errmsg, "gad file reading error");
-			return false;
-		}
-		fclose(fp);
-	} else {
-        sprintf(errmsg, "gad file open error");
-        return false;
+	try {
+		gad.Read(fname);
+	} catch (const std::runtime_error& e) {
+		sprintf_s(errmsg, sizeof(errmsg), e.what() );
+		return false;
 	}
 
 	int n_ga = 2 * aod1.nTable;

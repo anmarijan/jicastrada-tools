@@ -1,6 +1,7 @@
 //---------------------------------------------------------------------------
 #include <stdlib.h>
 #include <cmath>
+#include <stdexcept>
 #include "StradaIRE.h"
 //---------------------------------------------------------------------------
 
@@ -12,7 +13,6 @@ int main(int argc, char* argv[])
 		puts("This program multiply the traffic volume in [input] file by [scale]");
 		return 1;
     }
-    FILE* fp;
     double scale;
 	StradaIRE ire;
     scale = atof(argv[3]);
@@ -22,20 +22,12 @@ int main(int argc, char* argv[])
     }
     printf("Scale = %f\n", scale);
 
-//    char* str = ".456";
-//    float test = atof(str);
-//    printf("%f\n", test);
-	if( (fp = fopen(argv[1],"rt")) == NULL ) {
-		fprintf(stderr,"Cannot open file %s.\n", argv[1]);
+	try {
+		ire.Read(argv[1]);
+	} catch( const std::runtime_error& e) {
+		fprintf(stderr, "%s\n", e.what());
 		exit(1);
 	}
-
-	if( ire.Read(fp) == -1 ) {
-		fclose(fp);
-		fprintf(stderr,"Reading error in %s.\n", argv[1]);
-		exit(1);
-	}
-	fclose(fp);
 
     for(int i=0; i < ire.nLink; i++) {
        	IRELinkPtr link = ire.links[i];

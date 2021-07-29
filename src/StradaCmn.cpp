@@ -1,3 +1,4 @@
+#include <pch.h>
 /*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
@@ -10,26 +11,30 @@
 void print_header(FILE* fp, const char* str){
 
 	time_t timer;
-	struct tm *lt;
+	struct tm lt;
 
 	timer = time(NULL);
-	lt = localtime(&timer);
+	errno_t error = localtime_s(&lt,&timer);
 
-	fprintf(fp ,"%s %04d-%02d-%02d %02d:%02d:%02d\n", str,
-			lt->tm_year+1900, lt->tm_mon+1, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec);
-
+	if (error == 0) {
+		fprintf(fp, "%s %04d-%02d-%02d %02d:%02d:%02d\n", str,
+			lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec);
+	}
+	else {
+		fprintf(fp, "%s\n", str);
+	}
 }
 /*----------------------------------------------------------------------------*/
 int line_cord_check(FILE* fp){
 	int ret = 0;
 	char buff[100];
 	int x1,x2, y1, y2;
-	long int curpos = ftell(fp);	//ファイルポインタを保存
+	long int curpos = ftell(fp);
 	if( curpos == -1L ) return -1;
 	for(int i=0; i < 36000; i++) {
 		if( fgets(buff, 100, fp) == NULL ) break;
 		buff[40] = '\0';
-		if( sscanf(buff, "%10d%10d%10d%10d", &x1, &y1, &x2, &y2) == 0 ) {
+		if( sscanf_s(buff, "%10d%10d%10d%10d", &x1, &y1, &x2, &y2) == 0 ) {
 			if( fseek(fp, curpos, SEEK_SET) != 0 ) return -2;
 			return -3;
         }
@@ -82,9 +87,9 @@ SLinkV2::SLinkV2(){
 	route = ' ';
 }
 SLinkV2& SLinkV2::operator=(const SLinkV2& obj){
-	strcpy(name, obj.name);
-	strcpy(sNode, obj.sNode);
-	strcpy(eNode, obj.eNode);
+	strcpy_s(name, sizeof(name), obj.name);
+	strcpy_s(sNode, sizeof(sNode),obj.sNode);
+	strcpy_s(eNode, sizeof(eNode),obj.eNode);
 	length = obj.length;
 	Vmax = obj.Vmax;
 	Capa = obj.Capa;
@@ -127,7 +132,7 @@ bool SLinkV2::setFlag(int m, int j){
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	方向規制の値を返す
+//	Return direction flag number
 ////////////////////////////////////////////////////////////////////////////////
 int SLinkV2::getFlag(int m){
 	int ret;
@@ -145,16 +150,16 @@ void SLinkV2::clear_dummy_nodes() {
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-// Node の始点と終点を入れ替える
+// Swap start and end points
 ////////////////////////////////////////////////////////////////////////////////
 void SLinkV2::swap_nodes() {
-	char temp[11];
+	char temp[21];
 	float s;
 	float cx[3];
 	float cy[3];
-	strcpy(temp, sNode);
-	strcpy(eNode,sNode);
-	strcpy(sNode,temp );
+	strcpy_s(temp, sizeof(temp), sNode);
+	strcpy_s(eNode,sizeof(eNode),sNode);
+	strcpy_s(sNode,sizeof(sNode),temp );
 	s = iX; iX = jX; jX = s;
 	s = iY; iY = jY; jY = s;
 	for(int i=0; i < dummy; i++) {

@@ -24,11 +24,11 @@ class StradaMode {
 public:
 	int 	id;
 	bool	allow_transfer;
-	float	base_fare;		//１通貨単位
-	float	base_dist;		//距離（メートル）
-	float	excess;	//
+	float	base_fare;
+	float	base_dist;
+	float	excess;
 	int	capacity;
-	int	min_frequency;	//一時間あたり一方向
+	int	min_frequency;
 	int	max_frequency;
 	float	PCU;
 	float	cWalkTime;
@@ -46,7 +46,7 @@ public:
 	int Read( char* buff);
 	void Write(FILE* fp);
 	void setMode(StradaMode* sm);
-	double board_fare(bool txf);//当該モードに乗り込む際の料金(重み付)
+	double board_fare(bool txf);
 	double fare_cost(double sumdst);
 };
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,19 +68,15 @@ public:
 	int		path_limit;
 	int 	mshar_type;	// 1 or 2
 	int		max_headway_adj;
-	int		min_load_limit;	//ODの最小
+	int		min_load_limit;	//Minimum of OD
 	bool	b_report[10];	//F:no, T:yes
 	int		rate[10];
 	int	  nRep1;
     std::vector<std::string> LineToLine;
-//	char**	LineToLine;
 	int	  nRep2;
     std::vector<std::string> Interline;
-//	char**	Interline;
 	int	  nRep3;
     std::vector<std::string> NodeToNode;
-//	char**	NodeToNode;
-
     std::vector<StradaMode> modes;
     std::vector<std::string> centroids;
     std::vector<TermPenalty> penalties;

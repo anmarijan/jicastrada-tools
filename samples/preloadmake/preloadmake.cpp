@@ -2,6 +2,7 @@
 トランジト配分の結果(TRE)からプレロード用のファイルを作成
 */
 //---------------------------------------------------------------------------
+#include <string.h>
 #include <stdlib.h>
 #include <stdexcept>
 #include <string>
@@ -118,7 +119,7 @@ int main(int argc, char* argv[])
 	name[10]='\0';
 	do {
 		if( buff[0] != 'A' ) break;
-		m = getbufInt(buff,21,2);
+		m = getbufInt(buff, 21, 2);
 		nodelist.clear();
 
 		if( fgets(buff, 1024, fp) == NULL) break;
@@ -183,7 +184,7 @@ int main(int argc, char* argv[])
 		}
 	}
 */
-	strncpy(s_ire.comment, s_int.comment, 256);
+	s_ire.comment = s_int.comment;
 	s_ire.Write(argv[4]);
 	printf("Finish.\n");
 	return 0;

@@ -1,8 +1,8 @@
+#include <pch.h>
+//---------------------------------------------------------------------------
 #include <new>
-//---------------------------------------------------------------------------
 #include <string.h>
-#include <float.h>
-//---------------------------------------------------------------------------
+#include <cfloat>
 #include <stdexcept>
 #include <set>
 #include <string>
@@ -44,7 +44,7 @@ AssRate::AssRate(){
 	for(int i=0; i  < 10;i++) rate[i]=10;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	 StradaPARの初期化処理
+//
 ////////////////////////////////////////////////////////////////////////////////
 StradaPAR::StradaPAR(){
 	nLink = nNode = nZone = nMode = 0;
@@ -53,9 +53,9 @@ StradaPAR::StradaPAR(){
 }
 
 void StradaPAR::init(){
-	strcpy(name, "PAR FILE");
+	name = "PAR FILE";
 	nParam = 0;
-	nMode = 1;	//車種数の初期値は１
+	nMode = 1;	//Initial value of mode is 1
 	centroids.clear(); nZone = 0;
 	Turns.clear(); 	   nTurn = 0;
 	d_nodes.clear();   nDirection =  0;
@@ -102,13 +102,13 @@ void StradaPAR::init(){
 	trip_range[5] =30;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	保存
+// Save
 ////////////////////////////////////////////////////////////////////////////////
 void StradaPAR::Write(FILE* fp){
 
 	char buff[256];
 
-	fprintf(fp,"PAR2 %s\n", name);
+	fprintf(fp,"PAR2 %s\n", name.c_str());
 	fprintf(fp,"%5d%5d%5d%5d\n",nLink,nNode,nZone,nMode);
 
 	buff[0] = (bSearchByMode) ?  '1' : '0' ;
@@ -160,10 +160,13 @@ void StradaPAR::Write(FILE* fp){
 //
 ////////////////////////////////////////////////////////////////////////////////
 void StradaPAR::Write(const char* file_name) {
-	FILE* fp;
-	if((fp = fopen(file_name ,"wt"))==NULL) throw std::runtime_error("PAR");
-	Write(fp);
-	fclose(fp);
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, file_name, "wt");
+	if(error != 0 || fp == NULL) throw std::runtime_error("PAR");
+	else {
+		Write(fp);
+		fclose(fp);
+	}
 }
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -188,7 +191,7 @@ void StradaPAR::write_od(FILE* fp){
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	QV, BPR 関数のパラメータ : 書き込み
+//	QV, BPR function parameters
 ////////////////////////////////////////////////////////////////////////////////
 void StradaPAR::write_bpr(FILE* fp){
 
@@ -208,7 +211,7 @@ void StradaPAR::write_bpr(FILE* fp){
 	}
 }
 //---------------------------------------------------------------------------
-//!	方向規制 : 書き込み
+// Direction penalty
 //---------------------------------------------------------------------------
 void StradaPAR::write_turn(FILE* fp){
 	int i = 0;
@@ -253,7 +256,7 @@ void StradaPAR::write_direc(FILE* fp){
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  ＯＤ内訳情報の記録
+//  Record of OD details
 ////////////////////////////////////////////////////////////////////////////////
 void StradaPAR::write_detail(FILE* fp){
 
@@ -267,7 +270,7 @@ void StradaPAR::write_detail(FILE* fp){
 	}
 }
 //---------------------------------------------------------------------------
-//! 経路書き込み
+// Routes
 //---------------------------------------------------------------------------
 void StradaPAR::write_route(FILE* fp){
 
@@ -280,7 +283,7 @@ void StradaPAR::write_route(FILE* fp){
 	}
 }
 //---------------------------------------------------------------------------
-//!  F: 転換率パラメーターの保存
+//  F: Conversion parameters
 //---------------------------------------------------------------------------
 void StradaPAR::write_divparam(FILE* fp){
 
@@ -295,7 +298,7 @@ void StradaPAR::write_divparam(FILE* fp){
 
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  G: トリップ長分布ランクの記録
+//  G: Distribution of trip length
 ////////////////////////////////////////////////////////////////////////////////
 void StradaPAR::write_range(FILE* fp){
 	if( bTripRank ) {
@@ -305,7 +308,7 @@ void StradaPAR::write_range(FILE* fp){
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-// CSV: 区切り文字は ,
+// CSV: 
 ////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::ReadV4(FILE* fp, int& line_number) {
 
@@ -373,7 +376,7 @@ bool StradaPAR::ReadV4(FILE* fp, int& line_number) {
 
 	base_mode = atoi(pdata[0]);
 	for(int i=0; i < 10; i++) {
-		float d = (float)atof(pdata[1+i]);	//MAXFLOATを設定するため
+		float d = (float)atof(pdata[1+i]);	//MAXFLOAT
 		if( d == 1e10 ) {
 			time_value[i] = FLT_MAX ;
 		}
@@ -388,7 +391,7 @@ bool StradaPAR::ReadV4(FILE* fp, int& line_number) {
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-// この関数は、成功した場合には０を返し、それ以外は失敗した行番号を返す
+// 
 ////////////////////////////////////////////////////////////////////////////////
 int StradaPAR::Read(FILE* fp){
 
@@ -404,9 +407,7 @@ int StradaPAR::Read(FILE* fp){
 	if( strlen(buf) < 4 ) return (ret);
 	if( strncmp(buf, "PAR", 3) != 0 ) return (ret);
 	version = buf[3];
-	if(strlen(buf)>6)
-		strncpy(name, &buf[5],255);
-//	printf("%s\n",buf );
+	if (strlen(buf) > 6) name = &buf[5];
 	ret++;
 
 	if( version == '2' ) {
@@ -421,7 +422,7 @@ int StradaPAR::Read(FILE* fp){
 		if(fgets(buf,NCHAR,fp)==NULL) return(ret);
 		buf[strlen(buf)-1] = '\0';
 		buf_length = strlen(buf);
-		if( buf_length < 40 ) return(ret);     //40まではある、と思う
+		if( buf_length < 40 ) return(ret);
 
 		bSearchByMode = (buf[0]=='1') ? true : false ;
 		bCountByMode  = (buf[1]=='1') ? true : false ;
@@ -444,7 +445,6 @@ int StradaPAR::Read(FILE* fp){
 		unit_hours   = getbufInt(buf,30,5);
 		time_units   = getbufInt(buf,35,5);
 		if( buf_length > 40 ) {
-	// これ以降の項目は記述されていない場合がある。
 			for(int i=0; i < 10; i++)
 				assign_rate[i] = getbufInt(buf,40+3*i,3);
 			if( buf_length > 70 ) {
@@ -475,7 +475,7 @@ int StradaPAR::Read(FILE* fp){
 		}
 		base_mode = getbufInt(buf,0,5);
 		for(int i=0; i < 10; i++) {
-			float d = getbufFlt(buf,5+10*i,10);	//MAXFLOATを設定するため
+			float d = getbufFlt(buf,5+10*i,10);	//MAXFLOAT
 			if( d == 1e10 ) {
 				time_value[i] = FLT_MAX ;
 			}
@@ -487,7 +487,7 @@ int StradaPAR::Read(FILE* fp){
 	} else {
 		ReadV4(fp, ret);
 	}
-	// A..H が存在するかどうかを確認する
+	// Check A..H
 	for(int i=0; i < 8; i++)  opt[i] = 0;
 	long cur_pos;
 	int cur_line = ret;
@@ -504,7 +504,7 @@ int StradaPAR::Read(FILE* fp){
 	cur_pos = ftell(fp);
 	while (fgets(buf,NCHAR,fp) ) {
 		cur_line++;
-		rm = buf[0] - 'A'; // CSV形式であってもスペースは文字の一部と判断する
+		rm = buf[0] - 'A'; //
 		if( rm < 0 || rm > 7 ) return (cur_line);
 		if( opt[rm] == 0 ) loc[rm] = cur_pos;
 		opt[rm]++;
@@ -533,7 +533,7 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 		line_number++;
 		csv_parser(buf, pdata, 10, ',', '.');
 		for(int j=0; j < 10; j++) {
-			strncpy( centroids[10*i+j].name, pdata[j], 10 );
+			strncpy_s( centroids[10*i+j].name, 10, pdata[j], 10 );
 			centroids[10*i+j].name[10] = '\0';
 		}
 	}
@@ -542,7 +542,7 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 		line_number++;
 		csv_parser(buf, pdata, m, ',', '.');
 		for(int j=0; j < 10; j++) {
-			strncpy( centroids[10*n+j].name, pdata[j], 10 );
+			strncpy_s( centroids[10*n+j].name, 10, pdata[j], 10 );
 			centroids[10*n+j].name[10] = '\0';
 		}
 	}
@@ -550,11 +550,12 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 	if(fgets(buf, NCHAR,fp)==NULL) return false;
 	char* token = buf;
 	char* p = token;
-	p = strtok(buf, ",");// Z
-	p = strtok(NULL, ",");
+	char* next_token = NULL;
+	p = strtok_s(buf, ",",&next_token);// Z
+	p = strtok_s(NULL, ",",&next_token);
 	n = atoi(p);
 	for(int i=0; i < n; i++) {
-		if( (p = strtok(NULL, ",")) == NULL ) return false;
+		if( (p = strtok_s(NULL, ",", &next_token)) == NULL ) return false;
 		m = atoi(p);
 		if( m < 1 || m > nZone ) return false;
 		centroids[m-1].flag = true;
@@ -563,7 +564,7 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	OD Dataの読み込み
+//	OD Data
 ////////////////////////////////////////////////////////////////////////////////
 int StradaPAR::read_od(FILE* fp, int &line_number){
 
@@ -579,7 +580,7 @@ int StradaPAR::read_od(FILE* fp, int &line_number){
 		line_number++;
 		if(fgets(buf,256,fp)==NULL) return(-1);
 		for(int j =0;j < 10;j++){
-			strncpy(centroids[10*i+j].name,&buf[12*j],10);
+			strncpy_s(centroids[10*i+j].name, 10, &buf[12*j],10);
 			trim(centroids[10*i+j].name,11);
 			len = strlen(centroids[10*i+j].name);
 			if( len == 0) return(-1);
@@ -592,7 +593,7 @@ int StradaPAR::read_od(FILE* fp, int &line_number){
 		if(fgets(buf,256,fp)==NULL) return(-1);
 
 		for(int i = 0; i < m; i++){
-			strncpy(centroids[10*n+i].name,&buf[12*i],10);
+			strncpy_s(centroids[10*n+i].name,10, &buf[12*i],10);
 			trim(centroids[10*n+i].name,11);
 			len = strlen(centroids[10*n+i].name);
 			if( len == 0) return(-1);
@@ -600,7 +601,7 @@ int StradaPAR::read_od(FILE* fp, int &line_number){
 			else centroids[10*n+i].flag = false;
 		}
 	}
-	//重複をチェックする
+	// Check duplication
 	set<string> zone_list;
 	for(int i=0; i < nZone; i++ ) {
 		if( zone_list.find(centroids[i].name) != zone_list.end() ) {
@@ -620,47 +621,47 @@ int StradaPAR::rename_nodes(const char* curname, const char* newname) {
 	int count = 0;
 	for(int i = 0 ; i < nZone; i++) {
 		if ( strncmp(centroids[i].name, curname, 10 ) == 0 ) {
-			strncpy(centroids[i].name, newname, 10);
+			strncpy_s(centroids[i].name, sizeof(centroids[i].name), newname, 10);
 			count++;
 		}
 	}
 	for(auto& turn : Turns) {
 		if ( strncmp(turn.FromNode, curname, 10 ) == 0 ) {
-			strncpy(turn.FromNode, newname, 10);
+			strncpy_s(turn.FromNode, sizeof(turn.FromNode), newname, 10);
 			count++;
 		}
 		if ( strncmp(turn.ToNode, curname, 10 ) == 0 ) {
-			strncpy(turn.ToNode, newname, 10);
+			strncpy_s(turn.ToNode, sizeof(turn.ToNode), newname, 10);
 			count++;
 		}
 		if ( strncmp(turn.TurnNode, curname, 10 ) == 0 ) {
-			strncpy(turn.TurnNode, newname, 10);
+			strncpy_s(turn.TurnNode, sizeof(turn.TurnNode), newname, 10);
 			count++;
 		}
 	}
 	for(auto& dn : d_nodes ) {
 		if ( strncmp(dn.name, curname, 10 ) == 0 ) {
-			strncpy(dn.name, newname, 10);
+			strncpy_s(dn.name, sizeof(dn.name), newname, 10);
 			count++;
 		}
 	}
 	for(auto& x : od_links ) {
 		if ( strncmp(x.sNode, curname, 10 ) == 0 ) {
-			strncpy(x.sNode, newname, 10);
+			strncpy_s(x.sNode, sizeof(x.sNode), newname, 10);
 			count++;
 		}
 		if ( strncmp(x.eNode, curname, 10 ) == 0 ) {
-			strncpy(x.eNode, newname, 10);
+			strncpy_s(x.eNode, sizeof(x.eNode), newname, 10);
 			count++;
 		}
 	}
 	for(auto& ri : ri_links) {
 		if ( strncmp(ri.sNode, curname, 10 ) == 0 ) {
-			strncpy(ri.sNode, newname, 10);
+			strncpy_s(ri.sNode, sizeof(ri.sNode), newname, 10);
 			count++;
 		}
 		if ( strncmp(ri.eNode, curname, 10 ) == 0 ) {
-			strncpy(ri.eNode, newname, 10);
+			strncpy_s(ri.eNode, sizeof(ri.eNode), newname, 10);
 			count++;
 		}
 	}
@@ -668,7 +669,7 @@ int StradaPAR::rename_nodes(const char* curname, const char* newname) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//	A:速度計算式パラメータの読み込み
+//	A: Parameters of volume-speed relationship
 ////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::read_param(FILE* fp,int c, int &line_number)
 {
@@ -696,6 +697,8 @@ bool StradaPAR::read_param(FILE* fp,int c, int &line_number)
 		for(int i=0; i < 99; i++) qvdata[i].reset();
 
 		for(int i=0; i < nParam;i++){
+			delay = 0;
+			v1 = v2 = v3 = v4 = q1 = q2 = q3 = q4 = 0;
 			if( version == '4' ) {
 				csv_parser(buf, pdata, 11, ',', '.');
 				for(int j=0; j < 11; j++ ) if( pdata[j] == NULL ) throw(0);
@@ -741,7 +744,7 @@ bool StradaPAR::read_param(FILE* fp,int c, int &line_number)
 			qvdata[i].reset();
 		}
 		nParam = 0;
-		sprintf(strada_error, "A:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error), "A:%d", e);
 		return false;
 	} catch ( std::runtime_error& ) {
 		for(int i=0; i < 99; i++) {
@@ -753,7 +756,7 @@ bool StradaPAR::read_param(FILE* fp,int c, int &line_number)
 	return true;
 }
 //---------------------------------------------------------------------------
-//!  B:方向規制データの読み込み
+//  B:Turn
 //---------------------------------------------------------------------------
 bool StradaPAR::read_turn(FILE* fp,int c, int& line_number)
 {
@@ -785,9 +788,9 @@ bool StradaPAR::read_turn(FILE* fp,int c, int& line_number)
 				for(int j=0; j < 3; j++) {
 					trim( pdata[1+j] );
 				}
-				strncpy( turn.FromNode, pdata[1], 10); turn.FromNode[10] = 0;
-				strncpy( turn.TurnNode, pdata[2], 10); turn.TurnNode[10] = 0;
-				strncpy( turn.ToNode,   pdata[3], 10); turn.ToNode[10] = 0;
+				strncpy_s( turn.FromNode, sizeof(turn.FromNode), pdata[1], 10); turn.FromNode[10] = 0;
+				strncpy_s( turn.TurnNode, sizeof(turn.TurnNode), pdata[2], 10); turn.TurnNode[10] = 0;
+				strncpy_s( turn.ToNode, sizeof(turn.ToNode), pdata[3], 10); turn.ToNode[10] = 0;
 
 				turn.penalty = (float) atof(pdata[4]);
 
@@ -797,11 +800,11 @@ bool StradaPAR::read_turn(FILE* fp,int c, int& line_number)
 					if( fgets(buf, 100, fp) == NULL ) throw(1);
 					if(buf[0] != 'B') throw(1);
 				}
-				strncpy( turn.FromNode, &buf[5], 10);
+				strncpy_s( turn.FromNode, sizeof(turn.FromNode), &buf[5], 10);
 				trim(turn.FromNode, 11);
-				strncpy( turn.TurnNode, &buf[15], 10);
+				strncpy_s( turn.TurnNode, sizeof(turn.TurnNode), &buf[15], 10);
 				trim(turn.TurnNode, 11);
-				strncpy( turn.ToNode, &buf[25], 10);
+				strncpy_s( turn.ToNode, sizeof(turn.ToNode), &buf[25], 10);
 				trim(turn.ToNode, 11);
 				turn.penalty = getbufFlt(buf, 35, 10);
 			}
@@ -810,13 +813,13 @@ bool StradaPAR::read_turn(FILE* fp,int c, int& line_number)
 	} catch(int &e) {
 		Turns.clear();
 		nTurn = 0;
-		sprintf(strada_error, "B:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error), "B:%d", e);
 		return false;
 	}
 	return true;
 }
 /////////////////////////////////////////////////////////////////////////////////
-//  C:方向別交通量算定ノードの読み込み
+//  C: List of nodes where directional traffic is recorded
 /////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 {
@@ -854,7 +857,7 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 				for(int k=0; k < 15; k++) {
 					trim(pdata[1+k]);
 					str10 dn;
-					strncpy(dn.name, pdata[1+k], 10); dn.name[10] = '\0';
+					strncpy_s(dn.name, sizeof(dn.name), pdata[1+k], 10); dn.name[10] = '\0';
 					d_nodes.push_back(dn);
 				}
 			}
@@ -867,7 +870,7 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 				//printf("%s\n", pdata[1+j]);
 					trim(pdata[1+j]);
 					str10 dn;
-					strncpy(dn.name, pdata[1+j], 10); dn.name[10] = '\0';
+					strncpy_s(dn.name, sizeof(dn.name), pdata[1+j], 10); dn.name[10] = '\0';
 					d_nodes.push_back(dn);
 				}
 			}
@@ -875,7 +878,7 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 			for(int j =0; j < m; j++ ) {
 				for(int k=0; k < 15; k++) {
 					str10 dn;
-					strncpy(dn.name, &buf[5+10*k], 10);
+					strncpy_s(dn.name, sizeof(dn.name), &buf[5+10*k], 10);
 					trim(dn.name,10);
 					d_nodes.push_back(dn);
 					//printf("%d %d %s\n", j, k, d_nodes[15*j+k].name);
@@ -887,7 +890,7 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 			}
 			for(int j=0; j < n; j++) {
 				str10 dn;
-				strncpy(dn.name, &buf[5+10*j], 10);
+				strncpy_s(dn.name, sizeof(dn.name), &buf[5+10*j], 10);
 				trim(dn.name,10);
 				d_nodes.push_back(dn);
 			}
@@ -895,13 +898,13 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 	} catch(int& e) {
 		d_nodes.clear();
 		nDirection = 0;
-		sprintf(strada_error, "C:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error), "C:%d", e);
 		return false;
 	}
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  D: OD内訳の読み込み
+//  D: OD Detail
 ////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::read_detail(FILE* fp, int c, int &line_number)
 {
@@ -930,15 +933,15 @@ bool StradaPAR::read_detail(FILE* fp, int c, int &line_number)
 				csv_parser( buf, pdata, 4, ',', '.');
 				for(int k=0; k < 4; k++) if (pdata[k] == NULL ) throw(7);
 				for(int k=1; k < 4; k++) trim(pdata[k]);
-				strncpy(odlink.name, pdata[1], 10) ; odlink.name[10] = '\0';
-				strncpy(odlink.sNode, pdata[2], 10) ; odlink.sNode[10] = '\0';
-				strncpy(odlink.eNode, pdata[3], 10) ; odlink.eNode[10] = '\0';
+				strncpy_s(odlink.name, sizeof(odlink.name), pdata[1], 10) ; odlink.name[10] = '\0';
+				strncpy_s(odlink.sNode, sizeof(odlink.sNode), pdata[2], 10) ; odlink.sNode[10] = '\0';
+				strncpy_s(odlink.eNode, sizeof(odlink.eNode), pdata[3], 10) ; odlink.eNode[10] = '\0';
 			} else {
-				strncpy(odlink.name, &buf[5], 10);
+				strncpy_s(odlink.name, sizeof(odlink.name), &buf[5], 10);
 				trim(odlink.name,10);
-				strncpy(odlink.sNode, &buf[15], 10);
+				strncpy_s(odlink.sNode, sizeof(odlink.sNode), &buf[15], 10);
 				trim(odlink.sNode,10);
-				strncpy(odlink.eNode, &buf[25], 10);
+				strncpy_s(odlink.eNode, sizeof(odlink.eNode), &buf[25], 10);
 				trim(odlink.eNode,10);
 				if( j != nOdDetail -1 ){
 					if(fgets(buf,256,fp)==NULL || buf[0] != 'D' ) {
@@ -954,13 +957,13 @@ bool StradaPAR::read_detail(FILE* fp, int c, int &line_number)
 	} catch(int& e) {
 		od_links.clear();
 		nOdDetail = 0;
-		sprintf(strada_error, "D:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error), "D:%d", e);
 		return false;
 	}
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  E: 経路情報の読み込み
+//  E: Route information
 ////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::read_route(FILE* fp,int c,  int &line_number){
 
@@ -990,16 +993,16 @@ bool StradaPAR::read_route(FILE* fp,int c,  int &line_number){
 				csv_parser( buf, pdata, 4, ',', '.');
 				for(int k=0; k < 4; k++) if (pdata[k] == NULL ) throw(7);
 				for(int k=1; k < 4; k++) trim(pdata[k]);
-				strncpy(ri.name, pdata[1], 10) ; ri.name[10] = '\0';
-				strncpy(ri.sNode, pdata[2], 10) ; ri.sNode[10] = '\0';
-				strncpy(ri.eNode, pdata[3], 10) ; ri.eNode[10] = '\0';
+				strncpy_s(ri.name, sizeof(ri.name), pdata[1], 10) ; ri.name[10] = '\0';
+				strncpy_s(ri.sNode, sizeof(ri.sNode), pdata[2], 10) ; ri.sNode[10] = '\0';
+				strncpy_s(ri.eNode, sizeof(ri.eNode), pdata[3], 10) ; ri.eNode[10] = '\0';
 
 			} else {
-				strncpy(ri.name, &buf[5], 10);
+				strncpy_s(ri.name, sizeof(ri.name), &buf[5], 10);
 				trim(ri.name,10);
-				strncpy(ri.sNode, &buf[15], 10);
+				strncpy_s(ri.sNode, sizeof(ri.sNode), &buf[15], 10);
 				trim(ri.sNode,10);
-				strncpy(ri.eNode, &buf[25], 10);
+				strncpy_s(ri.eNode, sizeof(ri.eNode), &buf[25], 10);
 				trim(ri.eNode,10);
 				if( j != nRouteInf -1 ){
 					if(fgets(buf,256,fp)==NULL || buf[0] != 'E' ) {
@@ -1013,14 +1016,13 @@ bool StradaPAR::read_route(FILE* fp,int c,  int &line_number){
 	} catch(int& e ) {
 		ri_links.clear();
 		nRouteInf = 0;
-		sprintf(strada_error, "E:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error), "E:%d", e);
 		return false;
 	}
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  F:転換率パラメーターの読み込み
-//  転換率の設定によって読み込み方を変更する
+//  F: Conversion parameter
 ////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::read_divparam(FILE* fp,int c,  int &line_number){
 
@@ -1080,13 +1082,13 @@ bool StradaPAR::read_divparam(FILE* fp,int c,  int &line_number){
 			}
 		}
 	} catch (int &e ) {
-		sprintf(strada_error, "F:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error),"F:%d", e);
 		return false;
 	}
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  G: トリップ長分布ランクの読み込み
+//  G: Distribution of trip length
 ////////////////////////////////////////////////////////////////////////////////
 bool StradaPAR::read_range(FILE* fp,int c,  int &line_number){
 
@@ -1110,7 +1112,7 @@ bool StradaPAR::read_range(FILE* fp,int c,  int &line_number){
 			}
 		}
 	} catch (int& e) {
-		sprintf(strada_error, "G:%d", e);
+		sprintf_s(strada_error, sizeof(strada_error), "G:%d", e);
 		return false;
 	}
 	return true;
@@ -1120,17 +1122,20 @@ bool StradaPAR::read_range(FILE* fp,int c,  int &line_number){
 ////////////////////////////////////////////////////////////////////////////////
 void StradaPAR::Read(const char* file_name){
 
-	FILE* fp;
+	FILE* fp = NULL;
 	char msg[256];
-	if((fp = fopen(file_name,"rt"))==NULL) {
+	errno_t error = fopen_s(&fp, file_name, "rt");
+	if(error != 0 || fp == NULL) {
 		fprintf(stderr, "Cannot open file %s.\n", file_name);
 		throw std::runtime_error("PAR");
 	}
-	int ret =Read(fp);
-	fclose(fp);
-	if( ret != 0 ) {
-		snprintf(msg, sizeof(msg), "PAR Error at Line %d [%s]",ret, strada_error);
-		throw std::runtime_error(msg);
+	else {
+		int ret = Read(fp);
+		fclose(fp);
+		if (ret != 0) {
+			snprintf(msg, sizeof(msg), "PAR Error at Line %d [%s]", ret, strada_error);
+			throw std::runtime_error(msg);
+		}
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////

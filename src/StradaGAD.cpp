@@ -1,10 +1,19 @@
+#include <pch.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdexcept>
 #include <assert.h>
+#include <iostream>
+#include <fstream>
 #include <boost/algorithm/string.hpp>  //trim
+#include <boost/tokenizer.hpp>
 #include "StradaGAD.h"
 #include "tool.h"
+////////////////////////////////////////////////////////////////////////////////
+//
+////////////////////////////////////////////////////////////////////////////////
+typedef boost::tokenizer< boost::escaped_list_separator<char> > TOKENIZER;
+typedef boost::tokenizer< boost::escaped_list_separator<char> >::iterator TOKENIZER_ITERATOR;
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +34,7 @@ void StradaGAD::clear(){
 	GA.clear();
     nZone = nData = 0;
 }
-// 合計欄を設ける
+
 void StradaGAD::init(int nZone, int nData){
 	clear();
 	this->nZone = nZone;
@@ -41,104 +50,101 @@ int StradaGAD::get_data(int field, int zone) {
 	return (int)GA[field].data[zone];
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  失敗した場合は、失敗した行の数をマイナスで返す。
-//  ヘッダーでVersion 1でも強引に読み込む。
+//
 ////////////////////////////////////////////////////////////////////////////////
-int StradaGAD::Read(FILE* fp) {
-	char* p;
-	int n;
-	char buf[2048];
-	if( fgets(buf, 2048, fp) == NULL) return (-1);
-	buf[ strlen(buf) - 1 ] = '\0';
-	if( strncmp(buf, "GAD", 3) != 0 ) return (-1);
-	if( strlen(buf) > 4 ) {
-		if( buf[4] == '*' ) csv = true; else csv = false;
-		if( strlen(buf) > 6 ) {
-			title = &buf[5];
+void StradaGAD::Read(const char* fname) {
+	std::ifstream ifs(fname, std::ios_base::in);
+	if (!ifs) {
+		throw std::runtime_error("Cannot open AOD file.");
+	}
+	try {
+		std::string buff;
+		if (std::getline(ifs, buff).fail()) throw (1);
+		if (buff.compare(0, 3, "GAD") != 0) throw (1);
+		if ( buff.length() > 4) {
+			if (buff[4] == '*') csv = true; else csv = false;
+			if (buff.length() > 6) {
+				title = buff.substr(5);
+			}
 		}
-	}
-	if( fgets(buf, 2048, fp) == NULL) return (-2);
-	buf[ strlen(buf) - 1 ] = '\0';
-	if( csv ) {
-		p = strtok(buf, ",");
-		if ( p == NULL ) return (-2);
-		nZone = atoi(p);
-		p = strtok(NULL, ",");
-		if (p == NULL ) return (-3);
-		nData = atoi(p);
-	} else {
-		nZone = getbufInt(buf, 0, 5 );
-		nData = getbufInt(buf, 5, 5 );
-	}
-	if( nZone <= 0 || nData <= 0 ) return (-2);
-	int counter = -3;
-	GA.resize(nData);
-	for(int i=0; i< nData; i++) {
-		GA[i].data.resize(nZone+1,0);
-	}
-	for(int i=0; i < nData; i++) {
-		if( fgets(buf, 2048, fp) == NULL) {
-			clear();
-			return (counter);
+		if (std::getline(ifs, buff).fail()) throw (2);
+		if (csv) {
+			boost::tokenizer<boost::escaped_list_separator<char> > tokens(buff);
+			boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+			if (it == tokens.end()) throw(2);
+			nZone = std::stoi(*it);
+			++it; if (it == tokens.end()) throw(2);
+			nData = std::stoi(*it);
 		}
-		counter--;
-		buf[ strlen(buf) - 1 ] = '\0';
-		if ( csv ) {
-			p = strtok(buf,",");
-			if ( p == NULL ) {
+		else {
+			nZone = std::stoi(buff.substr(0, 5));
+			nData = std::stoi(buff.substr(5, 5));
+		}
+		if (nZone <= 0 || nData <= 0) throw (2);
+		int counter = 3;
+		GA.resize(nData);
+		for (int i = 0; i < nData; i++) {
+			GA[i].data.resize(nZone + 1, 0);
+		}
+		for (int i = 0; i < nData; i++) {
+			if (std::getline(ifs, buff).fail()) {
 				clear();
-				return (counter);
+				throw (counter);
 			}
-			p = strtok(NULL, ",");
-			GA[i].name =  p;
-		} else {
-			GA[i].name = &buf[5];
-		}
-		boost::trim(GA[i].name);
-	}
-	for(int i=0; i < nZone; i++) {
-		if( fgets(buf, 2048, fp) == NULL) {
-			clear();
-			return (counter);
-		}
-		counter--;
-		buf[ strlen(buf) - 1 ] = '\0';
-		if( csv ) {
-			p = strtok(buf, ",");
-			n = nData;
-			while (n) {
-				if( p == NULL ) {
+			counter++;
+			if (csv) {
+				TOKENIZER tokens(buff);
+				TOKENIZER_ITERATOR it = tokens.begin();
+				if (it == tokens.end()) {
 					clear();
-					return (counter);
+					throw(counter);
 				}
-				GA[nData - n].data[i] = atof(p);
-				n--;
-				p = strtok(NULL, ",");
+				++it;
+				if (it == tokens.end()) {
+					clear();
+					throw(counter);
+				}
+				GA[i].name = *it;
 			}
-		} else {
-			for(int j=0; j < nData; j++) {
-				GA[j].data[i] = getbufFlt(buf, 8*j, 8);
+			else {
+				GA[i].name = buff.substr(5);
+			}
+			boost::trim(GA[i].name);
+		}
+		for (int i = 0; i < nZone; i++) {
+			if (std::getline(ifs, buff).fail()) {
+				clear();
+				throw (counter);
+			}
+			counter++;
+			if (csv) {
+				TOKENIZER tokens(buff);
+				TOKENIZER_ITERATOR it = tokens.begin();
+				int n = nData;
+				while (n) {
+					if (it == tokens.end()) {
+						clear();
+						throw (counter);
+					}
+					GA[nData - n].data[i] = std::stod(*it);
+					n--;
+					++it;
+				}
+			}
+			else {
+				for (int j = 0; j < nData; j++) {
+					GA[j].data[i] = std::stod(buff.substr(8*j,8));
+				}
 			}
 		}
 	}
-	return (0);
-}
-////////////////////////////////////////////////////////////////////////////////
-//  ファイル名から読み込み
-////////////////////////////////////////////////////////////////////////////////
-void StradaGAD::Read(char* fname) {
-	FILE* fp;
-	if((fp = fopen(fname ,"rt"))==NULL) throw std::runtime_error("GAD");
-	int ret = Read(fp);
-	fclose(fp);
-	if( ret < 0 ) {
-		err_msg = "GAD Reading Error line :" + std::to_string(-ret);
-		throw std::runtime_error( msg() );
+	catch (int n) {
+		err_msg = "GAD Reading Error line :" + std::to_string(n);
+		throw std::runtime_error(msg());
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  ファイルの書き込み
-//  2011-9-15(Thu) 最大有効桁数を8桁に変更
+//
 ////////////////////////////////////////////////////////////////////////////////
 void StradaGAD::Write(FILE* fp){
 	if( csv) {

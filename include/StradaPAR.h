@@ -6,8 +6,8 @@
 #include <memory>
 #include <list>
 #include <vector>
+#include <string>
 //---------------------------------------------------------------------------
-//#include "StradaCmn.h"
 extern char strada_error[256];
 //---------------------------------------------------------------------------
 struct str10{
@@ -39,7 +39,7 @@ struct JHPC_Param {
 	double a;
 	double b;
 	double c;
-	JHPC_Param() : K(1),S(1.471),a(0.94),b(0.94),c(0.86){};
+	JHPC_Param() : mode(0), K(1),S(1.471),a(0.94),b(0.94),c(0.86){};
 };
 
 struct PUB_Param {
@@ -67,7 +67,7 @@ struct QV_PARAM {
 
 class StradaPAR {
 public:
-	char name[256];
+	std::string name;
 	int nZone;
 	int nLink;
 	int nNode;
@@ -79,44 +79,43 @@ public:
 	bool bCalcOdDetail;
 	bool bAnalyzeTurn;
 	char ZoneImpedance;
-	char ConvertType;   //転換方法の指定：０＝通常,１＝道路公団,２＝ロジット
-	char LinkCostType;      //0=QV, 1= BPR, 2=Davidson
-	bool bParam;            //QV, BPR を変更するかどうか
+	char ConvertType;
+	char LinkCostType;
+	bool bParam;      
 	bool bTurnControl;
 	bool bRouteInformation;
 	bool bTripRank;
 	bool bDivideCapacity;
-	bool bPreLoad;			//IREファイルを事前読み込みするかどうか
+	bool bPreLoad;		
 	bool bMinRoute;
-	char EquibriumType;		//均衡配分のタイプ
+	char EquibriumType;	
 	int MaxIteration;
 	float Error;
 	float Damp;
-	int unit_hours;		//時間帯配分の単位時間
-	int time_units;		//時間帯の数
+	int unit_hours;		
+	int time_units;		
 	short assign_rate[10];
 	bool rate_by_mode[10];
 	short arate_mode[10][10];
 //////////////////////////////
-//  ゾーン中心データ
-//  (i,j) -> nZone * i + j
+//  Centroid
 	std::vector<CentInfo> centroids;
 //////////////////////////////
-//  時間表価値データ
+//  Time value
 	int base_mode;
 	float time_value[10];	// min/cost
 	float sp_modify[10];
-	float APC[10];	//平均乗車人員
+	float APC[10];	//
 	float PCU[10];	//
 //////////////////////////////
-//  速度計算式      (A)
+//  Volume-speed      (A)
 	int nParam;
 //	float Davf;		// for Davidson
 //	float K_x;		// for BPR
 //	float alpha;	// for BPR
 	std::unique_ptr<QV_PARAM>	qvdata[99];
 /////////////////////////////
-//  方向規制        (B)
+//  Direction       (B)
 	int nTurn;
 	std::list<TurnControl>	Turns;
 /////////////////////////////
@@ -125,15 +124,15 @@ public:
 	std::list<str10> d_nodes;
 ////////////////////////////////////////////////
 //                  (D)
-	int nOdDetail;	 //OD内訳分析のリンク数
+	int nOdDetail;
 	std::list<LinkNode> od_links;
 ////////////////////////////////////////////////
 //                  (E)
-	int nRouteInf;	 //経路情報を集計するリンクの数
+	int nRouteInf;
 	std::list<LinkNode> ri_links;
 ////////////////////////////////
 //                  (F)
-	int pub_mode ;	//公共交通転換率の対象となるモード
+	int pub_mode ;
 	JHPC_Param	jhpc[10];
 	PUB_Param	pubp[9];
 //////////////////////////////////////////////////

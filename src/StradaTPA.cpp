@@ -1,10 +1,11 @@
+#include <pch.h>
+/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdexcept>
 /*----------------------------------------------------------------------------*/
-//#include "StradaCmn.h"
 #include "StradaTPA.h"
 #include "tool.h"
 /*----------------------------------------------------------------------------*/
@@ -21,13 +22,13 @@ int TermPenalty::Read(const char* str) {
 	char temp[6];
 	int len = strlen(str);
 	if ( len < 40 ) return -1;
-	strncpy(node, str, 10);
-	strncpy(fline, str+10, 10);
-	strncpy(tline, str+20, 10);
-	strncpy(temp, str+30, 5);
+	strncpy_s(node, sizeof(node), str, 10);
+	strncpy_s(fline, sizeof(fline), str+10, 10);
+	strncpy_s(tline, sizeof(tline), str+20, 10);
+	strncpy_s(temp, sizeof(temp), str+30, 5);
 	temp[5] = 0;
 	fpenalty = atoi(temp);
-	strncpy(temp, str+35, 5);
+	strncpy_s(temp, sizeof(temp), str+35, 5);
 	temp[5] = 0;
 	tpenalty = atoi(temp);
 	return 1;
@@ -35,8 +36,8 @@ int TermPenalty::Read(const char* str) {
 
 double StradaMode::board_fare(bool txf) {
 	if( txf==true && allow_transfer==true) return 0;
-	double cst = base_fare * cFareTime ;
-	return cst;
+	float cst = base_fare * cFareTime ;
+	return static_cast<double>(cst);
 }
 
 double StradaMode::fare_cost(double sumdst){
@@ -55,6 +56,12 @@ const char* StradaTPA::getCentroid(int i) {
 }
 StradaTPA::StradaTPA(){
 	nZone = nLine = 0; nMode = nPenalty = 0; nRep1 = nRep2 = nRep3 = 0 ;
+	for (int i = 0; i < 10; i++) {
+		b_report[i] = false;
+		rate[i] = 10;
+	}
+	max_headway_adj = 0; max_path = 3; max_trans = 2; min_load_limit = 0;
+	type = 'F'; timevalue = 1; mshar_type = 1; path_limit = 3;
 	vf = wf = 1.0;
 }
 void StradaTPA::clear(){
@@ -99,9 +106,6 @@ int StradaTPA::Read(FILE* fp) {
         if( strlen(buf) < 59 ) return (-3);
         line_no++;
 
-//
-//	fprintf(stderr,"%s\n",header);
-//
         vf = getbufFlt(buf,0,5);
         wf = getbufFlt(buf,5,5);
         timevalue = getbufFlt(buf,10,5);
@@ -121,20 +125,19 @@ int StradaTPA::Read(FILE* fp) {
         for(int j=0;j<nIterator;j++){
             rate[j] = getbufInt(buf,56+3*j,3);
         }
-//レポートデータ（１）
+// report data 1
         if(fgets(buf,200,fp)==NULL) return(-4);
         line_no++;
         nRep1 = pack_data(buf, LineToLine);
-//レポートデータ（２）
+// report data 2
         if(fgets(buf,200,fp)==NULL) return(-5);
         line_no++;
         nRep2 = pack_data(buf, NodeToNode);
-//レポートデータ（３）
+// report data 3
         if(fgets(buf,200,fp)==NULL) return(-6);
         line_no++;
         nRep3 = pack_data(buf, Interline);
-//モード別データ
-//        modes = new StradaMode[nMode];
+// mode data
         modes.resize(nMode);
         for(int j = 0; j < nMode; j++ ){
             line_no++;
@@ -142,14 +145,7 @@ int StradaTPA::Read(FILE* fp) {
             buf[strlen(buf)-1]= '\0';
             if( modes[j].Read(buf) == -1) throw;
         }
-//        printf("%s", buf);
-/*
-        centroids = new char*[nZone];
-        for(int i=0; i<nZone; i++) {
-            centroids[i] = new char[11];
-            centroids[i][10] = '\0';
-        }
-*/
+
         centroids.resize(nZone);
 
         int m = nZone / 10;
@@ -160,7 +156,7 @@ int StradaTPA::Read(FILE* fp) {
             if(fgets(buf,200,fp)==NULL) throw;
 
             for(int k=0;k<10;k++){
-                strncpy(name, &buf[10*k], 10);
+                strncpy_s(name, sizeof(name), &buf[10*k], 10);
                 trim(name,11);
                 centroids[10*j+k] = name;
             }
@@ -170,20 +166,17 @@ int StradaTPA::Read(FILE* fp) {
             if(fgets(buf,200,fp)==NULL) throw;
 
             for(int j = 0; j < n; j++){
-                strncpy(name, &buf[10*j], 10);
+                strncpy_s(name, sizeof(name), &buf[10*j], 10);
                 trim(name,11);
                 centroids[10*m+j] = name;
             }
         }
-//ターミナルペナルティ
-//        printf("%s", buf);
+// Turn penalty
         penalties.resize(nPenalty);
         for(int i=0; i < nPenalty; i++) {
             line_no++;
             if(fgets(buf,100,fp)==NULL) return(-1)*line_no;
-
             if( penalties[i].Read(buf) < 0 ) return (-1)*line_no;
-//            puts("F");
         }
     } catch (...) {
         return (-1)*line_no;
@@ -303,7 +296,7 @@ void StradaMode::setMode(StradaMode* sm){
 	 max_speed		= sm->max_speed;
 }
 ////////////////////////////////////////////////////////////////////////////////
-// スペースを後ろから削除し、有効な文字列の数を返す。
+//
 ////////////////////////////////////////////////////////////////////////////////
 int StradaTPA::pack_data(char* buf, std::vector<std::string> &target){
 	//assert( target == NULL );
@@ -343,11 +336,14 @@ int StradaTPA::pack_data(char* buf, std::vector<std::string> &target){
 void StradaTPA::Read(const char* fname){
 
 	FILE* fp;
-	if((fp = fopen(fname,"rt"))==NULL) throw std::runtime_error("Cannot open TPA file.");
-	int ret = Read(fp);
-	fclose(fp);
-    if( ret < 0)  {
-        sprintf(strada_error, "Failure in TPA file at line %d.\n", -ret);
-        throw std::runtime_error(strada_error);
-    }
+	errno_t error = fopen_s(&fp, fname, "rt");
+	if(error != 0 || fp==NULL) throw std::runtime_error("Cannot open TPA file.");
+	else {
+		int ret = Read(fp);
+		fclose(fp);
+		if (ret < 0) {
+			sprintf_s(strada_error, sizeof(strada_error), "Failure in TPA file at line %d.\n", -ret);
+			throw std::runtime_error(strada_error);
+		}
+	}
 }

@@ -18,8 +18,8 @@ public:
 class StradaGAD {
 	std::string err_msg;
 public:
-	std::string title;	//タイトル
-	bool csv ;	//csv形式か否か
+	std::string title;	
+	bool csv ;
 	int nZone;
     int nData;
 	std::vector<GAData> GA;
@@ -29,7 +29,7 @@ public:
     void init(int nZone, int nData);
     void clear();
     int Read(FILE* fp);
-    void Read(char* fname);
+    void Read(const char* fname);
     void Write(FILE* fp);
 	void set_title(int n, const char* str);
 	int get_data(int field, int zone);

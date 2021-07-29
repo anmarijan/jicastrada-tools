@@ -11,8 +11,8 @@ typedef unsigned char byte;
 //---------------------------------------------------------------------------
 void print_header(FILE* fp, const char* str);
 
-//x1 y1 x2 y2 形式のテキストファイルの検査と行数の数え上げ
-//各項目は10桁ずつで、最大読み込みは36000行とする。
+//Check the format of "x1 y1 x2 y2" and count the number of lines
+// Width of a column is 10, the maximum lines is 36000
 int line_cord_check(FILE* fp);
 //---------------------------------------------------------------------------
 class SNodeV2 {
@@ -21,30 +21,29 @@ public:
     float 	X, Y;
     SNodeV2();
 };
-//INTとIREで共通になる部分
+// common part of INT and IRE
 class SLink {
 public:
-	char	name[6];	//当該リンクの名前
+	char	name[6];
 	char	sNode[6];
 	char	eNode[6];
 	float	distance;
 	float	Vmax;
 	int		Q;
-	char	code;		//数。読込文字
-	char	evflag;		//経済評価
-	char	dspflag;	//画面表示用
+	char	code;
+	char	evflag;
+	char	dspflag;
 	char	userflag;
 	int		iX;
 	int		iY;
 	int		jX;
 	int		jY;
-	char	route;	//最短経路表示用のフラグ
+	char	route;
 public:
 	SLink();
 	bool check_node(char* s_node, char* e_node);
 };
-//! リンク構造（INT, IRE共通）Ver 2.0
-//  パディングしているので順序重要
+// Link structure (INT, IRE) Ver 2.0
 class SLinkV2 {
 public:
 	char name[11];
@@ -73,7 +72,7 @@ public:
 	float	dX[3];
 	float	dY[3];
 
-	char	route;	//最短経路表示用のフラグ
+	char	route;	//flag of shortest path
 
 	SLinkV2();
 	SLinkV2& operator=(const SLinkV2& obj);

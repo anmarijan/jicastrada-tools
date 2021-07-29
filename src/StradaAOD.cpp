@@ -1,14 +1,14 @@
+#include <pch.h>
 #include <new>
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-//#include <mem.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
-//#include <time.h>
+#include <boost/tokenizer.hpp>
 #define AOD_BAD_ALLOC 1
 /*----------------------------------------------------------------------------*/
 #include "StradaAOD.h"
@@ -16,6 +16,7 @@
 // #include "Matrix.h"
 /*----------------------------------------------------------------------------*/
 ODMatrix::ODMatrix(){
+	nZone = 0;
 }
 ODMatrix::ODMatrix(int n){
 	data.reset(new double[n*n]);
@@ -43,12 +44,14 @@ StradaAOD::StradaAOD() {
 	type = 0;
 	csv = false;
     zeroskip = true;
+	colnum = 0; colwid = 0; decwid = 0; data_type = 'X';
 }
 StradaAOD::StradaAOD(int nTable, int nZone){
 	version = 2;
 	type = 0;
 	allocTable(nTable, nZone);
 	csv = false;
+	colnum = 0;  colwid = 0; decwid = 0; data_type = 'X';
 }
 StradaAOD::StradaAOD(const StradaAOD & aod){
 
@@ -64,6 +67,7 @@ StradaAOD::StradaAOD(const StradaAOD & aod){
 	version = aod.version;
     csv = aod.csv;
     zeroskip = aod.csv;
+	colnum = 0;  colwid = 0; decwid = 0; data_type = 'X';
 
 	for(int i=0; i < nTable; i++){
 		for(int j=0; j < nZone * nZone; j++){
@@ -71,33 +75,34 @@ StradaAOD::StradaAOD(const StradaAOD & aod){
 		}
 	}
 }
-// メモリ確保
+// 
 void StradaAOD::allocTable(int nTable, int nZone){
 	assert( nTable > 0 && nZone > 0);
 	clear();
 	try {
 		tables.resize(nTable);
-	} catch( const std::bad_alloc& e) {
+	} catch( const std::bad_alloc&  ) {
 		throw AOD_BAD_ALLOC;
 	}
 	try {
 		for(int i=0; i< nTable; i++) {
 			tables[i].init(nZone);
 		}
-	} catch( const std::bad_alloc& e) {
+	} catch( const std::bad_alloc& ) {
 		tables.clear();
 		throw AOD_BAD_ALLOC;
 	}
 }
 /////////////////////////////////////////////////////////////////////////////
-// double形式で返す
+// 
 /////////////////////////////////////////////////////////////////////////////
 double StradaAOD::getOD(int tbl,int org, int dst){
 	assert((tbl < nTable)&&(org < nZone)&&(dst < nZone));
-	return tables[tbl].data[nZone * org + dst];
+	int s = nZone * org + dst;
+	return tables[tbl].data[s];
 }
 /////////////////////////////////////////////////////////////////////////////
-// 加算は小数点を含み、合計は整数に丸める
+// 
 /////////////////////////////////////////////////////////////////////////////
 double StradaAOD::getSumOD(int org, int dst) {
 	assert((org < nZone) && (dst < nZone));
@@ -111,7 +116,7 @@ void StradaAOD::setOD(int tbl, int org, int dst,double number){
 	tables[tbl].data[nZone * org + dst] = number;
 }
 /////////////////////////////////////////////////////////////////////////////
-//  OD表に加える
+//  
 /////////////////////////////////////////////////////////////////////////////
 void StradaAOD::plusOD(int tbl,int org,int dst,double number) {
 	assert((tbl < nTable)&&(org < nZone)&&(dst < nZone));
@@ -131,7 +136,7 @@ void StradaAOD::multOD(int tbl, double x) {
 /////////////////////////////////////////////////////////////////////////////
 void StradaAOD::clearOD() {
     for(int t=0; t < nTable; t++) {
-        for(int i=0; i < nZone ; i++)
+        for(int i=0; i < nZone  ; i++)
             for(int j=0; j < nZone; j++)
                 tables[t].data[nZone * i + j] = 0;
     }
@@ -198,7 +203,7 @@ int StradaAOD::FTFormat(char* str)
 	return 0;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	ファイルを読み込む
+//	
 ////////////////////////////////////////////////////////////////////////////////
 void StradaAOD::Read(const char* fname){
 
@@ -207,11 +212,9 @@ void StradaAOD::Read(const char* fname){
 		throw std::runtime_error("Cannot open AOD file.");
 	}
 	char* p;
-	char* kip = NULL;
 	char dst[100];
 	int length;
 	int name_len;
-	int max_len;
 
 	csv = false;
 
@@ -222,54 +225,53 @@ void StradaAOD::Read(const char* fname){
 		if( std::getline(ifs, buff).fail() ) throw std::runtime_error("line 1");
 
 		if( buff.compare(0,3,"AOD") != 0 && buff.compare(0,3,"IOD")!=0)	throw std::runtime_error("File type");
-		if( buff[3] == ' ' ) version = 1;
-		else if( buff[3] == '2' ) version = 2;
+		if (buff[3] == ' ') version = 1;
+		else if (buff[3] == '2') version = 2;
+		else if (buff[3] == '3') version = 3;
 		else throw std::runtime_error("Version");
 
 		if( buff[4] == '*' ) csv = true;
 		name = buff.substr(5);
 
 		if( std::getline(ifs, buff).fail() ) throw std::runtime_error("line 2");
-		length = buff.length();
 		if( csv ) {
-
-			//2行目はcsv形式の時もあるし、そうでない時もある！
 			bool csv_line2 = false;
-			for( int i=0; i < 15; i++ ) {
-				if( buff[i] >= length) throw std::runtime_error("line 2");
-				if( buff[i] == ',' ) {
+			p = &buff[0];
+			while( *p != '\0' ) {
+				if (*p == ',') {
 					csv_line2 = true;
 					break;
 				}
+				else p++;
 			}
-			p = &buff[0];
 			if( csv_line2 ) {
-				kip = strtok(p, ",");
-				if (kip==NULL) throw std::runtime_error("csv");
-				nZone = atoi(kip);
-				kip = strtok(NULL,","); if (kip==NULL) throw std::runtime_error("csv");
-				nTable = atoi(kip);
-				kip = strtok(NULL,","); if (kip==NULL) throw std::runtime_error("csv");
-				type = atoi(kip);
-				kip = strtok(NULL,",");
+				boost::tokenizer<boost::escaped_list_separator<char> > tokens(buff);
+				boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+				if ( it == tokens.end()) throw std::runtime_error("csv");
+				nZone = atoi(it->c_str());
+				++it; if (it == tokens.end()) throw std::runtime_error("csv");
+				nTable = atoi(it->c_str());
+				++it; if (it == tokens.end()) throw std::runtime_error("csv");
+				type = atoi(it->c_str());
+				++it; if (it == tokens.end()) throw std::runtime_error("csv");
+				if (nZone <= 0 || nTable <= 0 || type < 0 || type > 3)
+					throw std::runtime_error("Out of range");
+				allocTable(nTable, nZone);
+				int c = 0;
+				while (it != tokens.end()) {
+					tables[c++].name = (*it);
+					++it;
+				}
 			} else {
+				p = &buff[0];
 				nZone  = getbufInt(p, 0,5);
 				nTable = getbufInt(p, 5,5);
 				type   = getbufInt(p,10,5);
+				if (nZone <= 0 || nTable <= 0 || type < 0 || type > 3)
+					throw std::runtime_error("Out of range");
+				allocTable(nTable, nZone);
+				// else (task)
 			}
-			if(nZone <=0 || nTable <=0 || type < 0 || type > 3)
-				throw std::runtime_error("Out of range");
-//			printf("%5d%5d%5d\n", nZone, nTable, type);
-			allocTable(nTable,nZone);
-			if( csv_line2 ) {
-				int c = 0;
-				while (kip != NULL) {
-					tables[c++].name = kip;
-					kip = strtok(NULL,",");
-				}
-			}
-			// else 文の追加
-
 		} else {
 			p = &buff[0];
 			nZone  = getbufInt(p, 0,5);
@@ -279,21 +281,20 @@ void StradaAOD::Read(const char* fname){
 				throw std::runtime_error("Out of range");
 
 			allocTable(nTable,nZone);
-			//テーブル名称の取得
+			//table name
 			length = strlen(p);
-			length -= 15;	//テーブル情報の長さを除く(改行はない)
+			length -= 15;	//Exclude the table information
 			name_len = ( version == 1 ) ?  20 : 10;
 			length /= name_len;
 			length = (length < nTable) ? length : nTable;
 			for(int i=0; i < length; i++){
-				strncpy(dst,&p[15+name_len*i],20);
+				strncpy_s(dst,sizeof(dst),&p[15+name_len*i],name_len);
 				dst[name_len] = '\0';
 				trim(dst,name_len);
 				tables[i].name = dst;
 			}
 		}
-		//3行目以降の読み込み
-//		printf("%5d%5d%5d\n", nZone, nTable, type);
+		//From line 3 
 
 		if( version == 1 ) {
 			if( std::getline(ifs, buff).fail() ) throw std::runtime_error("format");
@@ -307,18 +308,20 @@ void StradaAOD::Read(const char* fname){
 				for(int j = 0; j < nZone; j++){
 					for(int k=0; k < m; k++){
 						if( std::getline(ifs, buff).fail() ) throw std::runtime_error("read");
-						if( buff.length() < colnum * colwid ) throw std::runtime_error("read");
+						unsigned int colsize = static_cast<unsigned int>(colnum * colwid);
+						if( buff.length() < colsize ) throw std::runtime_error("read");
 						for(int l = 0; l < colnum; l++){
-							strncpy(dst,&buff[colwid*l],colwid);
+							strncpy_s(dst,sizeof(dst),&buff[colwid*l],colwid);
 							dst[colwid] = '\0';
 							setOD(i, j, colnum*k+l, (double)atof(dst));
 						}
 					}
 					if(n !=0){
 						if( std::getline(ifs, buff).fail() ) throw std::runtime_error("read");
-						if( buff.length() < n * colwid ) throw std::runtime_error("read");
+						unsigned int width = static_cast<unsigned int>(n * colwid);
+						if( buff.length() < width ) throw std::runtime_error("read");
 						for(int l=0;l<n;l++){
-							strncpy(dst,&buff[colwid*l],colwid);
+							strncpy_s(dst,sizeof(dst),&buff[colwid*l],colwid);
 							dst[colwid] = '\0';
 							setOD(i, j, colnum*m+l, (double)atof(dst));
 						}
@@ -330,13 +333,14 @@ void StradaAOD::Read(const char* fname){
 				for(int t=0; t < nTable; t++) {
 					for (int i = 0; i < nZone; i++) {
 						if( std::getline(ifs, buff).fail() ) throw std::runtime_error("read");
-						p = &buff[0];
-						kip = strtok(p, ",");
-						if (kip==NULL) throw std::runtime_error("csv01");
+						boost::tokenizer<> tokens(buff);
+						boost::tokenizer<>::iterator it = tokens.begin();
+						if (it == tokens.end()) throw std::runtime_error("csv01");
+
 						for(int j=0; j < nZone ; j++) {
-							setOD(t,i,j,(double)atof(kip));
-							kip = strtok(NULL, ",");
-							if(j<nZone-1 && kip==NULL) throw std::runtime_error("csv02");
+							setOD(t,i,j, atof(it->c_str()));
+							++it;
+							if(j<nZone-1 && it == tokens.end()) throw std::runtime_error("csv02");
 						}
 					}
 				}
@@ -344,20 +348,18 @@ void StradaAOD::Read(const char* fname){
 				int origin, dest;
 				double x;
 				while( std::getline(ifs, buff) ) {
-					p = &buff[0];
-					kip = strtok(p, ",");
-						if (kip==NULL) throw std::runtime_error("csv03");
-						origin = atoi(kip);
-					kip = strtok(NULL, ",");
-						if (kip==NULL) throw std::runtime_error("csv04");
-						dest = atoi(kip);
+					boost::tokenizer<> tokens(buff);
+					boost::tokenizer<>::iterator it = tokens.begin();
+					if (it == tokens.end()) throw std::runtime_error("csv03");
+					origin = std::stoi(*it);
+					++it; if (it == tokens.end()) throw std::runtime_error("csv04");
+					dest = std::stoi(*it);
 					if( origin <= 0 || origin > nZone || dest <=0 || dest > nZone)
 						throw std::runtime_error("range");
 					for (int t=0; t < nTable; t++) {
-						kip = strtok(NULL, ",");
-							if (kip==NULL) throw std::runtime_error("csv05");
-							x = atof(kip);
-						setOD(t, origin-1, dest-1, (double)x);
+						++it; if (it == tokens.end()) throw std::runtime_error("csv05");
+						x = std::stod(*it);
+						setOD(t, origin-1, dest-1, x);
 					}
 				}
 			}
@@ -365,7 +367,7 @@ void StradaAOD::Read(const char* fname){
 			for(int t=0; t < nTable; t++) {
 				for(int i=0; i < nZone; i++) {
 					if( std::getline(ifs, buff).fail() ) throw std::runtime_error("read");
-					if( buff.length() < 8 * nZone )  throw std::runtime_error("read");
+					if( buff.length() < static_cast<unsigned int>(8 * nZone) )  throw std::runtime_error("read");
 					for(int j=0; j < nZone; j++ ) {
 						std::string sub = buff.substr(8*j,8);
 						setOD(t, i , j, atof(sub.c_str()));
@@ -380,7 +382,7 @@ void StradaAOD::Read(const char* fname){
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-// Ver2.0形式で保存する（８カラム×ゾーン数）
+// Ver2.0 format (8 cols x n zones)
 ////////////////////////////////////////////////////////////////////////////////
 void StradaAOD::Write(FILE* fp){
 
@@ -407,7 +409,7 @@ void StradaAOD::Write(FILE* fp){
 	}
 
 	if( version == 2) {
-		if(csv) {	//CSV 形式の場合
+		if(csv) {	//CSV
 			if( type == 0 ) {
 	        	for(int k=0; k < nTable; k++) {
 	                for(int i=0; i < nZone; i++) {
@@ -417,7 +419,7 @@ void StradaAOD::Write(FILE* fp){
 						fprintf(fp, "%g\n", getOD(k,i,nZone-1));
 	                }
 	            }
-            } else if (type == 2) {	//type=1には未対応
+            } else if (type == 2) {	//Not type=1
 				for(int i=0; i < nZone; i++) {
 					for(int j=0; j < nZone; j++) {
                         if(zeroskip) {
@@ -429,7 +431,7 @@ void StradaAOD::Write(FILE* fp){
                                 }
                             }
                         } else zflag = true;
-						if( zflag ) {	//非ゼロのデータのみ
+						if( zflag ) {	//Non zero data only
 							fprintf(fp, "%d,%d", i+1, j+1);
 							for(int k=0; k < nTable; k++) fprintf(fp, ",%g", getOD(k, i, j) );
 							fprintf(fp, "\n");
@@ -463,13 +465,17 @@ void StradaAOD::Write(FILE* fp){
 //
 ////////////////////////////////////////////////////////////////////////////////
 void StradaAOD::Write(const char* fname) {
-	FILE* fp;
-	if((fp = fopen(fname ,"wt"))==NULL) throw std::runtime_error("AOD");
-	Write(fp);
-	fclose(fp);
+	FILE* fp = NULL;
+	errno_t error;
+	error = fopen_s(&fp, fname, "wt");
+	if(error != 0 || fp == NULL) throw std::runtime_error("AOD");
+	else {
+		Write(fp);
+		fclose(fp);
+	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	初期化する(typeは初期化しない)
+//	
 ////////////////////////////////////////////////////////////////////////////////
 void StradaAOD::clear(){
 	tables.clear();
@@ -477,7 +483,7 @@ void StradaAOD::clear(){
 	nZone = 0;
 }
 /////////////////////////////////////////////////////////////////////////////
-//  各テーブル内で最大の値
+//  
 /////////////////////////////////////////////////////////////////////////////
 double StradaAOD::getMaxOD(int tbl){
 	double m_val = 0;
@@ -488,7 +494,7 @@ double StradaAOD::getMaxOD(int tbl){
 	return m_val;
 }
 /////////////////////////////////////////////////////////////////////////////
-//  全てのテーブル内で最大の値
+//  Return the max value of all tables
 /////////////////////////////////////////////////////////////////////////////
 double StradaAOD::getMaxOD(){
 	double m_val = 0;

@@ -1,3 +1,5 @@
+#include <pch.h>
+/*----------------------------------------------------------------------------*/
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,10 +11,9 @@
 /*----------------------------------------------------------------------------*/
 #include "StradaTNT.h"
 #include "tool.h"
-//#include "Matrix.h"
 /*----------------------------------------------------------------------------*/
 #define MAX_BUFF   1024
-#define CSV_READ   kip = strtok(NULL, ","); if( kip == NULL ) return false; trim(kip);
+#define CSV_READ   kip = strtok_s(NULL, ",", &next_token); if( kip == NULL ) return false; trim(kip);
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -26,7 +27,8 @@ TRNLine::TRNLine() {
 ///////////////////////////////////////////////////////////////////////////////
 bool TRNLine::ReadCSV(char* buff) {
 	nodes.clear();
-	char* kip = strtok(buff , ","); if( kip == NULL ) return false;
+	char* next_token = NULL;
+	char* kip = strtok_s(buff , ",", &next_token); if( kip == NULL ) return false;
 	dqconv(kip, name, 10);
 	trim(name, 11);
 	CSV_READ ; mode = atoi(kip); //printf("%d:", mode);
@@ -40,7 +42,7 @@ bool TRNLine::ReadCSV(char* buff) {
 		CSV_READ ;
 		node.access = kip[0];
 		CSV_READ ;
-		strncpy(node.name, kip,10);
+		strncpy_s(node.name, sizeof(node.name), kip,10);
 		nodes.push_back(node);
 	}
 	return true;
@@ -63,24 +65,24 @@ StradaTNT::StradaTNT() {
 }
 ///////////////////////////////////////////////////////////////////////////////
 //  StradaTNT
-//  -1: １行目の読み込み失敗
-//  -2: TNTファイルではない
-//  -3: ３行目の読み込み失敗
-//  -4: ライン数またはモード数が０かマイナス
-//  -5: ライン名の読み込み失敗
-//  -6: ライン名以外のライン情報の読み込み失敗
+//  -1: Fail to read 1st line
+//  -2: Not TNT
+//  -3: Fail to read 3rd line
+//  -4: No of lines or modes is 0 or minus
+//  -5: Fail to read the line name
+//  -6: Fail to read line information
 ///////////////////////////////////////////////////////////////////////////////
 int StradaTNT::Read(FILE* fp)
 {
 	int max_len;
 	std::vector<char> vb(MAX_BUFF);
-//	char buf[MAX_BUFF];        //共通のバッファ(最大1024文字)
 	char* sbuf;
 	char* kip;
+	char* next_token = NULL;
 	int csv;
 
 	sbuf = &vb[0];
-	max_len = maxlinelen(fp, sbuf, MAX_BUFF) + 1;	//ファイルの中で最大長を探す
+	max_len = maxlinelen(fp, sbuf, MAX_BUFF) + 1;	//
 	if( max_len > MAX_BUFF ) {
 		vb.resize(max_len);
 	}
@@ -96,11 +98,11 @@ int StradaTNT::Read(FILE* fp)
 		nLine = getbufInt(sbuf, 0, 5);
 		nMode = getbufInt(sbuf, 5, 5);
 	} else if (csv == 1) {
-		kip = strtok(sbuf, ",");
+		kip = strtok_s(sbuf, ",", &next_token);
 		if( kip == NULL ) return (-3);
 		trim(kip);
 		nLine = atoi(kip);
-		kip = strtok(NULL, ",");
+		kip = strtok_s(NULL, ",", &next_token);
 		if( kip == NULL ) return (-3);
 		trim(kip);
 		nMode = atoi(kip);
@@ -112,10 +114,9 @@ int StradaTNT::Read(FILE* fp)
 		TRNLine line;
 		if( csv == 0 ) {
 			memset(sbuf, 0, 11);
-			if( fgets(sbuf,11,fp) == NULL) return(-5);  //fgetsはn-1個の読み込み
+			if( fgets(sbuf,11,fp) == NULL) return(-5);
 			trim(sbuf);
-			// strncpy はコピー後にNULLを付加しない
-			strncpy(line.name, sbuf, 10); line.name[10]='\0';
+			strncpy_s(line.name, sizeof(line.name), sbuf, 10); line.name[10]='\0';
 			try {
 	            if( fgets(sbuf,14,fp) == NULL) throw 6;
 				short mode = getbufInt(sbuf, 0, 2);
@@ -142,10 +143,10 @@ int StradaTNT::Read(FILE* fp)
 	                sbuf[12]='0';
 	                sbuf[0] = ' ';
 	                trim(sbuf, 12);
-	                strncpy(node.name, sbuf, 10);
+	                strncpy_s(node.name, sizeof(node.name), sbuf, 10);
 					line.nodes.push_back(node);
 	            }
-	            //改行マークの読み込み
+	            //
 	            if( fgets(sbuf, MAX_BUFF, fp) == NULL) throw 13;
 
 	        } catch(int e) {
@@ -162,34 +163,35 @@ int StradaTNT::Read(FILE* fp)
     return 0;
 }
 ///////////////////////////////////////////////////////////////////////////////
-//  StradaTNT    ファイル名から読み込み
+//  StradaTNT
 ///////////////////////////////////////////////////////////////////////////////
 void StradaTNT::Read(const char *file_name) {
-	FILE* fp;
-	if((fp = fopen(file_name ,"rt"))==NULL)
-		throw std::runtime_error("Cannot open TNT2 file");
-
-	int ret = Read(fp);
-    fclose(fp);
-	char msg[20];
-	if( ret < 0 ){
-        sprintf(msg,"TNT2:%d",ret);
-        throw std::runtime_error( msg );
-    }
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, file_name, "rt");
+	if(error != 0 || fp==NULL) throw std::runtime_error("Cannot open TNT2 file");
+	else {
+		int ret = Read(fp);
+		fclose(fp);
+		std::string msg;
+		if (ret < 0) {
+			msg = "TNT2:" + std::to_string(ret);
+			throw std::runtime_error(msg);
+		}
+	}
 }
 void StradaTNT::Write(char* fname) {
-	FILE* fp;
-	if((fp = fopen(fname ,"wt"))==NULL)
-		throw std::runtime_error("Cannot create TNT2 file");
-
-	fprintf(fp, "TNT2 \n");
-	fprintf(fp, "%5d%5d\n", nLine, nMode);
-	for(int i=0; i < nLine; i++) lines[i].Write(fp);
-
-	fclose(fp);
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, fname, "wt");
+	if(error != 0 || fp == NULL) throw std::runtime_error("Cannot create TNT2 file");
+	else {
+		fprintf(fp, "TNT2 \n");
+		fprintf(fp, "%5d%5d\n", nLine, nMode);
+		for (int i = 0; i < nLine; i++) lines[i].Write(fp);
+		fclose(fp);
+	}
 }
 ///////////////////////////////////////////////////////////////////////////////
-//  ファイル書き込み
+//  
 ///////////////////////////////////////////////////////////////////////////////
 void StradaTNT::Write(FILE* fp) {
 	fprintf(fp, "TNT2 \n");

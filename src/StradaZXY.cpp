@@ -1,19 +1,18 @@
+#include <pch.h>
 //---------------------------------------------------------------------------
+#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <values.h>
-#include <float.h>
+#include <cfloat>
 #include <stdexcept>
-#pragma hdrstop
-#include <new>
 #include "tool.h"
 #include "StradaCmn.h"
 #include "StradaZXY.h"
 //---------------------------------------------------------------------------
 
 ////////////////////////////////////////////////////////////////////////////////
-//  重心
+// Centroid
 ////////////////////////////////////////////////////////////////////////////////
 
 void Border::set_center() {
@@ -48,7 +47,7 @@ void Border::init(int n) {
 	pt = new XYPoint[nPoint];
 }
 ////////////////////////////////////////////////////////////////////////////////
-// 内外判定
+//
 ////////////////////////////////////////////////////////////////////////////////
 bool Border::inside(double cx, double cy) {
 	int count = 0;
@@ -61,7 +60,6 @@ bool Border::inside(double cx, double cy) {
 			if ( cx < (pt[i].x + d * (pt[i+1].x-pt[i].x)) ) count++;
 		}
 	}
-//	printf("%d %d\n", nPoint, count);
 	if( count % 2 == 1 ) return true;
 	return false;
 }
@@ -101,13 +99,6 @@ void StradaZXY::init(int n_zone, int n_border) {
 	zones = new XYPoint[nZone];
 	borders = new Border[nBorder];
 }
-////////////////////////////////////////////////////////////////////////////////
-//
-////////////////////////////////////////////////////////////////////////////////
-//ZoneXY* StradaZXY::getZone(int i) {
-//	if ( i < 0 || i >= nZone ) return NULL;
-//	return &zones[i];
-//}
 ///////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,10 +106,9 @@ int StradaZXY::Read(FILE* fp) {
 	char buff[256];
 	char str[20] ={};
     char* pdata[5];
-	char* temp;
 
 	if( fgets(buff,256,fp) == NULL ) return (-1);
-	strncpy(str, buff, 5);
+	strncpy_s(str, sizeof(str), buff, 5);
 	if( strncmp( str, "ZXY", 3) != 0 ) return (-1);
 	if( str[3] == ' ' ) version = 1;
 	else if (str[3] == '2' ) version = 2;
@@ -128,7 +118,7 @@ int StradaZXY::Read(FILE* fp) {
 	
 	if( fgets(buff,256,fp) == NULL ) return (-2);
 	if( csv ) {
-		temp = csv_parser(buff, pdata, 2, ',', '.');
+		csv_parser(buff, pdata, 2, ',', '.');
 		nZone = atoi(pdata[0]);
 		coordinate = atoi(pdata[1]);
 	} else {
@@ -137,9 +127,8 @@ int StradaZXY::Read(FILE* fp) {
 	}
 	if( version == 1 ) {
 		scale = getbufInt(buff, 10, 5 );
-		strncpy(filename, &buff[20], 20);
+		strncpy_s(filename, sizeof(filename), &buff[20], 20);
 	}
-	// 一度ファイルを最後まで読み込む
 	int iz;
 	double ix, iy;
 	int row = 3;
@@ -147,7 +136,7 @@ int StradaZXY::Read(FILE* fp) {
 	if( csv ) {
 		for (int i=0; i < nZone; i++ ) {
 			if( fgets(buff, 256, fp) == NULL ) return (-row);
-			temp = csv_parser(buff, pdata, 3, ',', '.');
+			csv_parser(buff, pdata, 3, ',', '.');
 			iz = atoi(pdata[0]);
 			ix = atof(pdata[1]);
 			iy = atof(pdata[2]);
@@ -179,18 +168,17 @@ int StradaZXY::Read(FILE* fp) {
 			row++;
 		}
 	}
-	//次に境界線データ
 	nBorder = 0;
 	if( csv ) {
 		while(true) {
 			if( fgets(buff, 256, fp) == NULL ) break;
-			temp = csv_parser(buff, pdata, 1, ',', '.');
+			csv_parser(buff, pdata, 1, ',', '.');
 			iz = atoi(pdata[0]);
 			if(iz < 2 ) return (-row);
 			row++;
 			for(int i=0; i < iz; i++) {
 				if( fgets(buff, 256, fp) == NULL) return (-row);
-				temp = csv_parser(buff, pdata, 3, ',', '.');
+				csv_parser(buff, pdata, 3, ',', '.');
 				ix = atof(pdata[0]);
 				iy = atof(pdata[1]);
 				row++;
@@ -219,29 +207,25 @@ int StradaZXY::Read(FILE* fp) {
 			nBorder++;
 		}
 	}
-
-	//ファイル読み込み可能
-	//ファイルの先頭に戻る
 	if ( fseek(fp, 0L, SEEK_SET) != 0 ) {
 		fprintf(stderr, "SEEK ERROR");
 	}
 	fgets(buff, 256, fp);
-//		printf("%s", buff);	
-	fgets(buff, 256, fp);	//二行下がる
+	fgets(buff, 256, fp);
 	try {
 		zones  = new XYPoint[nZone];
 		borders = new Border[nBorder];
-	} catch (std::bad_alloc) {
+	} catch (const std::bad_alloc& ) {
 		delete[] zones;   zones = NULL;
 		delete[] borders; borders = NULL;
 		return -row;
 	}
 	row = 3;
 	for(int i=0; i < nZone; i++) {
-		fgets(buff,256,fp);	//エラーは発生しないはず
+		fgets(buff,256,fp);
 		row++;
 		if( csv ) {
-			temp = csv_parser(buff, pdata, 3, ',', '.');
+			csv_parser(buff, pdata, 3, ',', '.');
 			zones[i].x = atof(pdata[1]);
 			zones[i].y = atof(pdata[2]);
 		} else {
@@ -268,7 +252,7 @@ int StradaZXY::Read(FILE* fp) {
 			for(int j=0; j < borders[i].nPoint; j++) {
 				fgets(buff,256,fp);
 				row++;
-				temp = csv_parser(buff, pdata, 3, ',', '.');
+				csv_parser(buff, pdata, 3, ',', '.');
 				borders[i].pt[j].x = atof(pdata[0]);
 				borders[i].pt[j].y = atof(pdata[1]);
 			}
@@ -298,10 +282,10 @@ int StradaZXY::Read(FILE* fp) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 void StradaZXY::Write(const char* fname) {
-	FILE* fp;
+	FILE* fp = NULL;
 	char buff[12];
-
-	if( (fp = fopen(fname, "wt")) != NULL )
+	errno_t error = fopen_s(&fp, fname, "wt");
+	if( error == 0 && fp != NULL )
 	{
 		if( version == 1) fprintf(fp, "ZXY StradaZXY\n");
 		else {
@@ -310,13 +294,13 @@ void StradaZXY::Write(const char* fname) {
 		}
 
 		if( version == 1) {
-			fprintf(fp, "%5d%5d%5d%20c\n", nZone, coordinate, scale, filename);
+			fprintf(fp, "%5d%5d%5d%20s\n", nZone, coordinate, scale, filename);
 			for(int i=0; i < nZone; i++) {
 				fprintf(fp, "%5d", i+1 );
 				fixfloat(buff, zones[i].x, 5);
-				fprintf(fp, "%5s"  , zones[i].x);
+				fprintf(fp, "%5s"  , buff);
 				fixfloat(buff, zones[i].y, 5);
-				fprintf(fp, "%5s\n", zones[i].y );
+				fprintf(fp, "%5s\n", buff );
 			}
 			for(int i=0; i < nBorder; i++) {
 				fprintf(fp, "%5d\n", borders[i].nPoint);
@@ -370,23 +354,26 @@ void StradaZXY::Write(const char* fname) {
 void StradaZXY::Read(char* fname) {
 	FILE* fp;
 	char str[20];
-	if( (fp = fopen(fname, "rt")) == NULL ) throw std::runtime_error("ZXY");
-	int ret = Read(fp);
-	if( ret < 0 ) {
-		sprintf( str, "ZXY %d", -ret);
-		throw std::runtime_error(str);
+	errno_t error = fopen_s(&fp, fname, "rt");
+	if( error != 0 || fp == NULL ) throw std::runtime_error("ZXY");
+	else {
+		int ret = Read(fp);
+		if (ret < 0) {
+			sprintf_s(str, sizeof(str), "ZXY %d", -ret);
+			throw std::runtime_error(str);
+		}
+		fclose(fp);
 	}
-	fclose(fp);
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  数学座標とスクリーン座標の変換
+//  Coordinate conversion
 ////////////////////////////////////////////////////////////////////////////////
 void StradaZXY::conv(int cd, int mergin){
 
 	double y;
 
-	if( cd == coordinate ) return;  //同じ座標系には変換しない
-	if( coordinate != 0 && coordinate != 1 ) return; //数学座標、スクリーン座標以外は×
+	if( cd == coordinate ) return;
+	if( coordinate != 0 && coordinate != 1 ) return;
 
 	double y_max = 0;
 	double y_min = FLT_MAX;
@@ -412,7 +399,7 @@ void StradaZXY::conv(int cd, int mergin){
 
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  数学座標とスクリーン座標の変換
+//   Coordinate conversion
 ////////////////////////////////////////////////////////////////////////////////
 void StradaZXY::circulate(){
 
@@ -434,7 +421,7 @@ void StradaZXY::circulate(){
 			x1 = x2;
 			y1 = y2;
 		}
-		if( sum < 0 ) { //反時計回りの場合
+		if( sum < 0 ) { //
 			dx = div(borders[i].nPoint, 2);
 			for(int j = 1; j < dx.quot; j++) {
 				int k = borders[i].nPoint-1-j;
@@ -471,12 +458,8 @@ void StradaZXY::calc_boundary() {
 	height = max_y - min_y ;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//void StradaZXY::set_center(int check) {
-//	for(int i=0; i < nZone; i++) zones[i].set_center(check);
-//}
 /////////////////////////////////////////////////////////////////////////////
-// MapInfo で書き込み
+// MapInfo format
 /////////////////////////////////////////////////////////////////////////////
 void StradaZXY::WriteMInfo(char* fname) {
 
@@ -488,10 +471,11 @@ void StradaZXY::WriteMInfo(char* fname) {
     double yo = min_y;
     double xm = max_x;
     double ym = max_y;
-
-    if( (fp_mif = fopen(file_name, "wt")) != NULL ) {
+	errno_t error = fopen_s(&fp_mif, file_name, "wt");
+    if(error == 0 && fp_mif != NULL ) {
         set_fname(fname, file_name, "mid" );
-        if( (fp_mid = fopen(file_name, "wt")) != NULL ) {
+		error = fopen_s(&fp_mid, file_name, "wt");
+        if( error == 0 && fp_mid != NULL ) {
               fprintf(fp_mif,"Version 300\n");
               fprintf(fp_mif,"Charset \"WindowsJapanese\"\n");
               fprintf(fp_mif,"Delimiter \",\"\n");
@@ -518,12 +502,12 @@ void StradaZXY::WriteMInfo(char* fname) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// MapInfo で書き込み (GAD FILEの指標も出力)
+// MapInfo format with GAD FILE data
 /////////////////////////////////////////////////////////////////////////////
 void StradaZXY::WriteMInfo(char* fname, StradaGAD& gad) {
 
-	FILE* fp_mif;
-	FILE* fp_mid;
+	FILE* fp_mif = NULL;
+	FILE* fp_mid = NULL;
 	char file_name[MAXPATH];
 	set_fname(fname, file_name, "mif" );
 	double xo = min_x;
@@ -533,10 +517,11 @@ void StradaZXY::WriteMInfo(char* fname, StradaGAD& gad) {
 	if( gad.nZone != nZone) {
 		printf("No of zones is different GAD:%d, ZXY:%d\n", gad.nZone, nZone);
 	}
-
-	if( (fp_mif = fopen(file_name, "wt")) != NULL ) {
+	errno_t error = fopen_s(&fp_mif, file_name, "wt");
+	if(error == 0 && fp_mif != NULL ) {
 		set_fname(fname, file_name, "mid" );
-		if( (fp_mid = fopen(file_name, "wt")) != NULL ) {
+		error = fopen_s(&fp_mid, file_name, "wt");
+		if(error == 0 && fp_mif != NULL) {
 			  fprintf(fp_mif,"Version 300\n");
 			  fprintf(fp_mif,"Charset \"WindowsJapanese\"\n");
 			  fprintf(fp_mif,"Delimiter \",\"\n");
@@ -545,14 +530,14 @@ void StradaZXY::WriteMInfo(char* fname, StradaGAD& gad) {
 			  fprintf(fp_mif,"  XCenter Integer\n");
 			  fprintf(fp_mif,"  YCenter Integer\n");
 			  for(int i=0; i < gad.nData; i++ ) {
-				fprintf(fp_mif, "  %s Integer\n", gad.GA[i].name);
+				fprintf(fp_mif, "  %s Integer\n", gad.GA[i].name.c_str());
 			  }
 			  fprintf(fp_mif,"Data\n\n");
 
 			  for(int i=0; i < nZone; i++) {
 				fprintf(fp_mid, "%5g,%5g,", zones[i].x, zones[i].y );
 				for(int j=0; j < gad.nData; j++ ) {
-					fprintf(fp_mid, "%8d,", gad.GA[j].data[i]);
+					fprintf(fp_mid, "%8f,", gad.GA[j].data[i]);
 				}
 				fprintf(fp_mid, "\n");
 				fprintf(fp_mif,"Region 1\n");

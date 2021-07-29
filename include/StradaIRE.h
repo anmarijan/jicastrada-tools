@@ -8,35 +8,35 @@
 #include <vector>
 #include <boost/intrusive_ptr.hpp>
 //---------------------------------------------------------------------------
-//! IREレコードの要素（１方向の結果）
+// A part of a IRE record (oneway)
 //---------------------------------------------------------------------------
 class OnewayResult {
 public:
-	float avSp;	//!<平均速度
-	float ltSp;	//!<最終速度
-	float VCR;	//!<混雑度
-	float Vol;	//!<total
-	float inVol[10];	//!<内内
-	float thVol[10];	//!<内外
-	float btVol[10];	//!<外外
-	float ATL;	//!<avarage trip length
-	float trVol[6];	//!<トリップ長分布別交通量
+	float avSp;	// average speed
+	float ltSp;	// last speed
+	float VCR;	// congestion rate
+	float Vol;	// total
+	float inVol[10];	// inside traffic
+	float thVol[10];	// inside - outside
+	float btVol[10];	// outside - outside
+	float ATL;	        // avarage trip length
+	float trVol[6];	    // distribution by trip length
 
 	OnewayResult();
 
 	float mode_vol(int m) { return inVol[m] + thVol[m] + btVol[m]; }
-	float mode_vol(int m, int t);	//t 内々=1、内外=2、外外=3
+	float mode_vol(int m, int t);	//t =1(inside), 2(in-out), 3(out-out)
 	float total(int t);
 	float pass_vol(float pcu[], float apc[], int t = 0);
 	float veh_vol(float pcu[], int = 0);
 
 	int Read(char* str);
-	int ReadCSV();
+	int ReadCSV(char* next_token);
 	void Write(FILE* fp);
 	void WriteCSV(FILE* fp);
 };
 //------------------------------------------------------------------------------
-//! IRE(結果ファイル)のレコード
+// A Record of IRE file
 //------------------------------------------------------------------------------
 class IRELinkV2 : public SLinkV2 {
 	int ref_counter;
@@ -61,8 +61,8 @@ public:
 	double VCR();
 	double VCR(int d);
 
-	int Read(char* str);
-	void ReadCSV(char* str);
+	int Read(const char* str);
+	void ReadCSV(const char* str);
 	void Write(FILE* fp);
 	void WriteCSV(FILE* fp);
 
@@ -71,21 +71,21 @@ public:
 };
 using IRELinkPtr = boost::intrusive_ptr<IRELinkV2>;
 //------------------------------------------------------------------------------
-//! IRE(結果ファイル)を扱うクラス
+// IRE file class
 //------------------------------------------------------------------------------
 class StradaIRE {
 public:
-	bool csv;	//CSV形式か否か
-	int nLink;			//!<リンク数
-	int nNode;			//!<ノード数
-	int nMode;			//!<モード数
+	bool csv;
+	int nLink;
+	int nNode;
+	int nMode;
 	float Ranks[5];
-	int coordinate;	//!<0:screen, 1:mathematical, 2:latitude,longitude
-	float APC[10];		//!<モード別平均乗車人員数
-	float PCU[10];		//!< PCU
+	int coordinate;	// 0:screen, 1:mathematical, 2:latitude,longitude
+	float APC[10];	// average number of passengers by mode
+	float PCU[10];  // PCU by mode
 
-    char comment[256];
-    char msg[64];
+    std::string comment;
+    std::string msg;
 
 	std::vector<IRELinkPtr> links;
 
@@ -95,7 +95,6 @@ public:
 	IRELinkPtr getLink(int i){return links[i];}
 	void clear();
 
-	int Read(FILE* fp);
 	void Read(const char* fname);
 	void init(StradaINT& s_int);
 	void resize(int nlink);

@@ -1,21 +1,27 @@
+#include <pch.h>
+/*-------------------------------------------------------------------------*/
 #include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <float.h>
+#include <cmath>
+#include <cfloat>
 #include <limits.h> //INT_MAX
 /*-------------------------------------------------------------------------*/
 #include <set>
 #include <string>
+#include <vector>
 #include <stdexcept>
+#include <iostream>
+#include <fstream>
+#include <boost/tokenizer.hpp>
 /*-------------------------------------------------------------------------*/
 #include "StradaCmn.h"
 #include "StradaIRE.h"
 #include "StradaINT.h"
 #include "tool.h"
 /*-------------------------------------------------------------------------*/
-#define READ_DUMMY_XY(A)  kip = strtok(NULL,","); \
+#define READ_DUMMY_XY(A)  kip = strtok_s(NULL, sep, &ptr); \
 if(kip == NULL) throw std::runtime_error("CSV in Link Dummy XY"); \
 (A) = (float)atof(kip);
 
@@ -49,7 +55,7 @@ OnewayResult::OnewayResult(){
 	for(int i=0; i< 6; i++) trVol[i] = 0;
 }
 /////////////////////////////////////////////////////////////////////////////
-// 全モードの合計（内々=1、内外=2、外外=3）
+// Total of all modes (inside=1, in-out=2, out-out=3)
 /////////////////////////////////////////////////////////////////////////////
 float OnewayResult::total(int i) {
 	float s = 0;
@@ -63,7 +69,7 @@ float OnewayResult::total(int i) {
 	return s;
 }
 /////////////////////////////////////////////////////////////////////////////
-// モード別（内々=1、内外=2、外外=3）10/03/21(日) 21:02:06
+// Volume by mode (inside=1, in-out=2, out-out=3)
 /////////////////////////////////////////////////////////////////////////////
 float OnewayResult::mode_vol(int m, int t) {
 	float vol = 0;
@@ -86,7 +92,7 @@ float OnewayResult::mode_vol(int m, int t) {
 	return vol;
 }
 /////////////////////////////////////////////////////////////////////////////
-// 旅客数の計算 2010/01/24 4:07    PCU=0の時は旅客数ゼロ
+// Calculate no. of passengers, it is zero when PCU=0
 /////////////////////////////////////////////////////////////////////////////
 float OnewayResult::pass_vol(float pcu[], float apc[], int t) {
 	float vol = 0;
@@ -114,7 +120,7 @@ float OnewayResult::pass_vol(float pcu[], float apc[], int t) {
 	return vol;
 }
 /////////////////////////////////////////////////////////////////////////////
-// 台数の計算 2010/01/24 4:15
+// 
 /////////////////////////////////////////////////////////////////////////////
 float OnewayResult::veh_vol(float pcu[], int t) {
 	float vol = 0;
@@ -142,8 +148,7 @@ float OnewayResult::veh_vol(float pcu[], int t) {
 	return vol;
 }
 //---------------------------------------------------------------------------
-//! 方向別交通量部分のバッファからの読み込み
-/* @return 0: 正常終了、-1:浮動小数点の変換エラー */
+//
 //---------------------------------------------------------------------------
 int OnewayResult::Read(char* buf){
 
@@ -170,26 +175,26 @@ int OnewayResult::Read(char* buf){
 // 232+6+7*6 =
 }
 
-int OnewayResult::ReadCSV(){
-
+int OnewayResult::ReadCSV(char* next_token){
+	const char* sep = ",";
 	char* kip;
 
 	try {
-		kip = strtok(NULL,","); avSp = (float)atof(kip);
-		kip = strtok(NULL,","); ltSp = (float)atof(kip);
-		kip = strtok(NULL,","); VCR  = (float)atof(kip);
-		kip = strtok(NULL,","); Vol  = (float)atof(kip);
+		kip = strtok_s(NULL, sep, &next_token); avSp = (float)atof(kip);
+		kip = strtok_s(NULL, sep, &next_token); ltSp = (float)atof(kip);
+		kip = strtok_s(NULL, sep, &next_token); VCR  = (float)atof(kip);
+		kip = strtok_s(NULL, sep, &next_token); Vol  = (float)atof(kip);
 
 		for(int i=0; i < 10; i++){
-			kip = strtok(NULL,","); inVol[i] = (float)atof(kip);
-			kip = strtok(NULL,","); thVol[i] = (float)atof(kip);
-			kip = strtok(NULL,","); btVol[i] = (float)atof(kip);
+			kip = strtok_s(NULL, sep, &next_token); inVol[i] = (float)atof(kip);
+			kip = strtok_s(NULL, sep, &next_token); thVol[i] = (float)atof(kip);
+			kip = strtok_s(NULL, sep, &next_token); btVol[i] = (float)atof(kip);
 		}
 
-		kip = strtok(NULL,","); ATL  = (float)atof(kip);
+		kip = strtok_s(NULL, sep, &next_token); ATL  = (float)atof(kip);
 
 		for(int i=0; i < 6; i++) {
-			kip = strtok(NULL,",");
+			kip = strtok_s(NULL, sep, &next_token);
 			trVol[i] = (float)atof(kip);
 		}
 	} catch(std::exception& ){
@@ -199,7 +204,7 @@ int OnewayResult::ReadCSV(){
 // 232+6+7*6 =
 }
 //---------------------------------------------------------------------------
-//! ファイルへの書き込み
+// Save file
 //---------------------------------------------------------------------------
 void OnewayResult::Write(FILE* fp){
 
@@ -234,21 +239,22 @@ void OnewayResult::WriteCSV(FILE* fp) {
 }
 
 IRELinkV2::IRELinkV2() : SLinkV2() {
+	ref_counter = 0;
 
 }
 
 IRELinkV2::IRELinkV2(SLinkV2& s) : SLinkV2(s) {
-
+	ref_counter = 0;
 }
 //------------------------------------------------------------------------------
-//! 結果のリンクデータ読み込み
+//! Read link data
 //------------------------------------------------------------------------------
-int IRELinkV2::Read(char* buf){
+int IRELinkV2::Read(const char* buf){
 
 	try {
-        strncpy(name, &buf[0], 10);    trim(name,11);  name[10]  = '\0';
-        strncpy(sNode, &buf[10], 10);  trim(sNode,11); sNode[10] = '\0';
-        strncpy(eNode, &buf[20], 10);  trim(eNode,11); eNode[10] = '\0';
+        strncpy_s(name, sizeof(name),&buf[0], 10);    trim(name,11);  name[10]  = '\0';
+        strncpy_s(sNode, sizeof(sNode), &buf[10], 10);  trim(sNode,11); sNode[10] = '\0';
+        strncpy_s(eNode, sizeof(eNode), &buf[20], 10);  trim(eNode,11); eNode[10] = '\0';
 
         length = getbufFlt(buf, 30, 7);
         Vmax   = getbufFlt(buf, 37, 5);
@@ -258,11 +264,11 @@ int IRELinkV2::Read(char* buf){
 
         char str[300];
         memset(str, 0, 300);
-        strncpy(str, &buf[62], 280);
+        strncpy_s(str, sizeof(str),&buf[62], 280);
         if( result[0].Read(str) == -1) throw std::runtime_error("IRE");
 
         memset(str, 0, 300);
-        strncpy(str, &buf[342], 280);
+        strncpy_s(str, sizeof(str), &buf[342], 280);
         if( result[1].Read(str) == -1) throw std::runtime_error("IRE");
 
         linktype = buf[622];
@@ -305,55 +311,56 @@ int IRELinkV2::Read(char* buf){
 	return(1);
 }
 //---------------------------------------------------------------------------
-//! CSV読み込み：bufの最後の改行文字は削除して渡すこと
-// bufは有限長の文字列であること
 // SPACEs are trimmed
 //---------------------------------------------------------------------------
-void IRELinkV2::ReadCSV(char* buf){
+void IRELinkV2::ReadCSV(const char* buf){
 	char* kip;
-	int counter = 0;	// , の数を数える（100以上であるはず）
-	kip = buf;
+	int counter = 0;
+	std::vector<char> vec(strlen(buf)+1);
+	vec[strlen(buf)] = '\0';
+	kip = &vec[0];
 	while( *kip != '\0') {
 		if(*kip == ',' ) counter++;
 		kip++;
 	}
 	if ( counter < 109 ) throw  std::runtime_error("CSV in IRELink");
+	char* ptr;
+	const char* sep = ",";
+	kip = strtok_s(&vec[0], sep, &ptr); dqconv(kip, name, 10); trim(name,11);
 
-	kip = strtok(buf, ","); dqconv(kip, name, 10); trim(name,11);
-
-	kip = strtok(NULL,","); dqconv(kip, sNode, 10); trim(name,11);
-	kip = strtok(NULL,","); dqconv(kip, eNode, 10); trim(name,11);
-    kip = strtok(NULL,","); length = (float)atof(kip);
-    kip = strtok(NULL,","); Vmax   = (float)atof(kip);
-    kip = strtok(NULL,","); Capa   = (float)atof(kip);
-    kip = strtok(NULL,","); QV     = (int)atof(kip);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, sNode, 10); trim(name,11);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, eNode, 10); trim(name,11);
+    kip = strtok_s(NULL, sep, &ptr); length = (float)atof(kip);
+    kip = strtok_s(NULL, sep, &ptr); Vmax   = (float)atof(kip);
+    kip = strtok_s(NULL, sep, &ptr); Capa   = (float)atof(kip);
+    kip = strtok_s(NULL, sep, &ptr); QV     = (int)atof(kip);
     for(int i=0; i < 10; i++) {
-		kip = strtok(NULL,",");
+		kip = strtok_s(NULL, sep, &ptr);
 		ways[i] = *kip;
 	}
 
-    if( result[0].ReadCSV() == -1) throw std::runtime_error("IRE");
-    if( result[1].ReadCSV() == -1) throw std::runtime_error("IRE");
+    if( result[0].ReadCSV(ptr) == -1) throw std::runtime_error("IRE");
+    if( result[1].ReadCSV(ptr) == -1) throw std::runtime_error("IRE");
 
-	kip = strtok(NULL,","); linktype = *kip;
-	kip = strtok(NULL,",");
+	kip = strtok_s(NULL, sep, &ptr); linktype = *kip;
+	kip = strtok_s(NULL, sep, &ptr);
     if( *kip == '0') evaluation = true; else evaluation = false;
-	kip = strtok(NULL,","); display = *kip;
-	kip = strtok(NULL,","); dqconv(kip, aFlag4, 1); aFlag1 = aFlag4[0];
-	kip = strtok(NULL,","); nFlag2 = atoi(kip);
-	kip = strtok(NULL,","); nFlag3 = atoi(kip);
+	kip = strtok_s(NULL, sep, &ptr); display = *kip;
+	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, aFlag4, 1); aFlag1 = aFlag4[0];
+	kip = strtok_s(NULL, sep, &ptr); nFlag2 = atoi(kip);
+	kip = strtok_s(NULL, sep, &ptr); nFlag3 = atoi(kip);
 //	printf("%d %d", nFlag2, nFlag3);
-	kip = strtok(NULL,","); dqconv(kip, aFlag4, 2);
-	kip = strtok(NULL,","); dqconv(kip, aFlag5, 3);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, aFlag4, 2);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, aFlag5, 3);
 
-	kip = strtok(NULL,",");	//dummy
+	kip = strtok_s(NULL, sep, &ptr);	//dummy
 
-	kip = strtok(NULL,","); iX = (float)atof(kip);
-	kip = strtok(NULL,","); iY = (float)atof(kip);
-	kip = strtok(NULL,","); jX = (float)atof(kip);
-	kip = strtok(NULL,","); jY = (float)atof(kip);
+	kip = strtok_s(NULL, sep, &ptr); iX = (float)atof(kip);
+	kip = strtok_s(NULL, sep, &ptr); iY = (float)atof(kip);
+	kip = strtok_s(NULL, sep, &ptr); jX = (float)atof(kip);
+	kip = strtok_s(NULL, sep, &ptr); jY = (float)atof(kip);
 
-	kip = strtok(NULL,","); dummy = atoi(kip);
+	kip = strtok_s(NULL, sep, &ptr); dummy = atoi(kip);
 //	printf("%g %g %g %g\n", iX, iY, jX, jY);
 	if( dummy > 0 ) {
 		READ_DUMMY_XY( dX[0] )
@@ -369,25 +376,25 @@ void IRELinkV2::ReadCSV(char* buf){
 	}
 }
 /////////////////////////////////////////////////////////////////////////////
-// 人数（両方向）2010/01/24 6:03
+// Persons (both)
 /////////////////////////////////////////////////////////////////////////////
 float IRELinkV2::pass_vol(float pcu[], float apc[], int t) {
 	return result[0].pass_vol(pcu, apc, t) + result[1].pass_vol(pcu, apc, t);
 }
 /////////////////////////////////////////////////////////////////////////////
-// 台数（両方向）2010/01/24 6:03
+// Vehicles (both)
 /////////////////////////////////////////////////////////////////////////////
 float IRELinkV2::veh_vol(float pcu[], int t) {
 	return result[0].veh_vol(pcu, t) + result[1].veh_vol(pcu, t);
 }
 /////////////////////////////////////////////////////////////////////////////
-// PCU-KM 10/01/30(土) 18:44:14
+// PCU-KM
 /////////////////////////////////////////////////////////////////////////////
 float IRELinkV2::pcu_km(int m, int t) {
 	return length * (result[0].mode_vol(m,t) + result[1].mode_vol(m,t) );
 }
 /////////////////////////////////////////////////////////////////////////////
-// PCU-HOUR 10/01/30(土) 19:02:54
+// PCU-HOUR
 /////////////////////////////////////////////////////////////////////////////
 float IRELinkV2::pcu_hr(int m, int t) {
 	double a , b;
@@ -399,7 +406,7 @@ float IRELinkV2::pcu_hr(int m, int t) {
 	return (float) (length * ( a + b )) ;
 }
 /////////////////////////////////////////////////////////////////////////////
-// PCU-HOUR:Speed 11/06/25(土)
+// PCU-HOUR:Speed
 /////////////////////////////////////////////////////////////////////////////
 double IRELinkV2::pcu_hr_sp(int m, double sp, int t) {
 	double a, b;
@@ -415,7 +422,7 @@ double IRELinkV2::pcu_hr_sp(int m, double sp, int t) {
 	return length * (a + b );
 }
 /////////////////////////////////////////////////////////////////////////////
-// 2013/12/23
+// VCR (both)
 /////////////////////////////////////////////////////////////////////////////
 double IRELinkV2::VCR() {
 	double ret = 0;
@@ -425,7 +432,7 @@ double IRELinkV2::VCR() {
 	return ret;
  }
 /////////////////////////////////////////////////////////////////////////////
-// 2013/12/23
+// VCR (direction d)
 /////////////////////////////////////////////////////////////////////////////
 double IRELinkV2::VCR(int d) {
 	double ret = 0;
@@ -436,7 +443,7 @@ double IRELinkV2::VCR(int d) {
  }
 
 //---------------------------------------------------------------------------
-//! リンクの書き込み
+// Read a link
 //---------------------------------------------------------------------------
 void IRELinkV2::Write(FILE* fp){
 	char buff[64];
@@ -479,7 +486,7 @@ void IRELinkV2::WriteCSV(FILE* fp) {
 	fprintf(fp,"\n");
 }
 //------------------------------------------------------------------------------
-//! コンストラクタ
+// Constructor
 //------------------------------------------------------------------------------
 StradaIRE::StradaIRE(){
 	nLink = nNode = nMode = 0;
@@ -494,10 +501,10 @@ StradaIRE::StradaIRE(){
     Ranks[2] = 15;
     Ranks[3] = 20;
     Ranks[4] = 30;
-    memset(msg, '\0', 64);
+	mix1 = mix2 = mix3 = mix4 = miy1 = miy2 = miy3 = miy4 = 0;
 }
 //------------------------------------------------------------------------------
-//! デストラクタ
+// Destructor
 //------------------------------------------------------------------------------
 StradaIRE::~StradaIRE(){
 }
@@ -546,120 +553,110 @@ void StradaIRE::WriteAsINTV2(FILE* fp){
     s_int.Write(fp);
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  INT2形式で保存
-
+//  Save as INT2 format
 ////////////////////////////////////////////////////////////////////////////////
 void StradaIRE::WriteAsINTV2(char* fname){
-	FILE* fp;
-	if((fp = fopen(fname ,"wt"))==NULL) throw std::runtime_error("IRE2");
-	WriteAsINTV2(fp);
-	fclose(fp);
-}
-//---------------------------------------------------------------------------
-//! IRE2ファイルの読み込み
-//---------------------------------------------------------------------------
-void StradaIRE::Read(const char* fname) {
-	FILE* fp;
-    char buff[20];
-	if((fp = fopen(fname ,"rt"))==NULL) {
-		std::string str1("Cannot open IRE: ");
-		std::string str2(fname);
-		throw std::runtime_error(str1+str2);
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, fname, "wt");
+	if( error != 0 || fp == NULL) throw std::runtime_error("IRE2");
+	else {
+		WriteAsINTV2(fp);
+		fclose(fp);
 	}
-	int ret = Read(fp);
-	fclose(fp);
-	if( ret < 0 ) {
-    	sprintf(buff, "IRE2(%d)", -ret);
-    	throw std::runtime_error(buff);
-    }
 }
 //------------------------------------------------------------------------------
-//! IREファイルの読み込み
-// 1: 最初の行
-// 2: IRE2ファイルではない
-// 3: ２行目読み込み失敗
-// 4: ２行目の数値変換失敗
+// Read IRE file
 //------------------------------------------------------------------------------
-int StradaIRE::Read(FILE* fp){
-
-	char buf[1024];
-	char* kip;
-
-	if( fgets(buf, 1024, fp) == NULL ) return(-1);
-	if( buf[0] != 'I' || buf[1] != 'R' || buf[2] != 'E' || buf[3] != '2' )
-		return(-2);
-
-	if(buf[4] == '*') csv = true; else csv = false;
-    buf[strlen(buf)-1]=0;
-    sprintf(comment, &buf[5], 256);
-
-	if( fgets(buf, 1024, fp) == NULL) return (-3);
-    try {
-		if( csv ) {
-			kip = strtok(buf, ","); KIP_ERROR; nLink = atoi(kip);
-			kip = strtok(NULL, ","); KIP_ERROR; nNode = atoi(kip);
-			kip = strtok(NULL, ","); KIP_ERROR; nMode = atoi(kip);
-			for(int i=0; i < 5; i++) {
-				kip = strtok(NULL, ","); KIP_ERROR; Ranks[i] = (float)atof(kip);
-			}
-			kip = strtok(NULL, ","); KIP_ERROR; coordinate = atoi(kip);
-			for(int i=0; i < 10; i++){
-				kip = strtok(NULL, ","); KIP_ERROR; APC[i] = (float)atof(kip);
-				kip = strtok(NULL, ","); KIP_ERROR; PCU[i] = (float)atof(kip);
-			}
-
-		} else {
-
-			nLink = getbufInt(buf, 0, 5);
-			nNode = getbufInt(buf, 5, 5);
-			nMode = getbufInt(buf,10, 5);
-
-			for(int i=0; i < 5; i++) Ranks[i] = getbufFlt(buf, 15+5*i,5);
-			coordinate = getbufInt(buf, 40, 5);
-
-			for(int i=0; i < 10; i++){
-				APC[i] = getbufFlt(buf, 45 + i* 10, 5);
-				PCU[i] = getbufFlt(buf, 50 + i* 10, 5);
-			}
-		}
-
-    } catch(const std::exception& ) {
-		return (-4);
-    }
-
+void StradaIRE::Read(const char* fname){
+	std::ifstream ifs(fname, std::ios_base::in);
+	if (!ifs) {
+		throw std::runtime_error("Cannot open IRE file");
+	}
+	std::string buff;
 	try {
-		links.clear();
-		for(int i=0; i < nLink; i++){
-			links.push_back(new IRELinkV2());
-		}
-    } catch(std::bad_alloc& e) {
-		links.clear();
-        return (-5);
-    }
-	int count;
+		if (std::getline(ifs, buff).fail()) throw(1);
+		if (buff.compare(0, 4, "IRE2") != 0) throw(1);
+		if (buff[4] == '*') csv = true; else csv = false;
+		comment = buff.substr(5);
+		if (std::getline(ifs, buff).fail()) throw(2);
+		try {
+			if (csv) {
+				boost::tokenizer<boost::escaped_list_separator<char> > tokens(buff);
+				boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+				if (it == tokens.end()) throw std::exception(); else nLink = std::stoi(*it); ++it;
+				if (it == tokens.end()) throw std::exception(); else nNode = std::stoi(*it); ++it;
+				if (it == tokens.end()) throw std::exception(); else nMode = std::stoi(*it);
+				for (int i = 0; i < 5; i++) {
+					++it; if (it == tokens.end()) throw std::exception(); else Ranks[i] = std::stof(*it);
+				}
+				++it; if (it == tokens.end()) throw std::exception(); else coordinate = std::stoi(*it);
+				for (int i = 0; i < 10; i++) {
+					++it; if (it == tokens.end()) throw std::exception(); else APC[i] = std::stof(*it);
+					++it; if (it == tokens.end()) throw std::exception(); else PCU[i] = std::stof(*it);
+				}
+			}
+			else {
 
-    try {
-		for(count=0; count < nLink; count++){
-			if( fgets(buf,1024, fp) == NULL ) throw std::runtime_error("IRE2");
-			if( csv ) {
-				links[count]->ReadCSV(buf);
-			} else {
-				if( links[count]->Read(buf) == -1) throw std::runtime_error("LINE");
+				nLink = std::stoi(buff.substr(0, 5));
+				nNode = std::stoi(buff.substr(5, 5));
+				nMode = std::stoi(buff.substr(10, 5));
+
+				for (int i = 0; i < 5; i++) Ranks[i] = std::stof(buff.substr(15 + 5 * i, 5));
+				coordinate = std::stoi(buff.substr(40, 5));
+
+				for (int i = 0; i < 10; i++) {
+					APC[i] = std::stof(buff.substr(45 + i * 10, 5));
+					PCU[i] = std::stof(buff.substr(50 + i * 10, 5)); 
+				}
+			}
+
+		}
+		catch (const std::exception&) {
+			throw(3);
+		}
+
+		try {
+			links.clear();
+			for (int i = 0; i < nLink; i++) {
+				links.push_back(new IRELinkV2());
 			}
 		}
-    } catch (const std::exception& e) {
-		links.clear();
-        sprintf(msg, "%s %d",e.what(), count);
-        return(-6);
+		catch (std::bad_alloc& ) {
+			links.clear();
+			throw (-1);
+		}
+		int count;
+
+		try {
+			for (count = 0; count < nLink; count++) {
+				if (std::getline(ifs, buff).fail()) throw std::runtime_error("IRE2");
+				if (csv) {
+					links[count]->ReadCSV(buff.c_str());
+				}
+				else {
+					if (links[count]->Read(buff.c_str()) == -1) throw std::runtime_error("LINE");
+				}
+			}
+		}
+		catch (const std::exception& e) {
+			links.clear();
+			msg = e.what() + std::to_string(count);
+			throw(-2);
+		}
+
 	}
-	return(1);
+	catch (int e) {
+		buff = "IRE2(" + std::to_string(e) + ")";
+		throw std::runtime_error(buff);
+	}
+
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  IREファイルの保存
+//  Save IRE file
 ////////////////////////////////////////////////////////////////////////////////
 void StradaIRE::Write(FILE* fp){
 	char buff[10];
-	//ノード数はここで再確認
+	// Count the number of nodes
 	std::set<std::string> node_table;
 	for(int i=0; i < nLink; i++){
 		node_table.insert(links[i]->sNode);
@@ -669,7 +666,7 @@ void StradaIRE::Write(FILE* fp){
 
 	fprintf(fp,"IRE2 ");
 	//print_header(fp,"IRE2");
-    fprintf(fp, "%s\n", comment);
+    fprintf(fp, "%s\n", comment.c_str());
 
 	if ( csv ) {
 		fprintf(fp,"%d,%d,%d,",nLink, nNode, nMode);
@@ -700,20 +697,23 @@ void StradaIRE::Write(FILE* fp){
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  IREファイルの保存: ファイル名指定
+//  Save IRE file as fname
 ////////////////////////////////////////////////////////////////////////////////
 void StradaIRE::Write(char* fname) {
-	FILE* fp;
-	if((fp = fopen(fname ,"wt"))==NULL) throw std::runtime_error("IRE2");
-	Write(fp);
-	fclose(fp);
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, fname, "wt");
+	if(error != 0 || fp==NULL) throw std::runtime_error("IRE2");
+	else {
+		Write(fp);
+		fclose(fp);
+	}
 }
 /////////////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////////////
 void StradaIRE::WriteMInfo(const char* fname, double dai, int vtype) {
-    FILE* fp_mif;
-    FILE* fp_mid;
+    FILE* fp_mif = NULL;
+    FILE* fp_mid = NULL;
 	char file_name[255];
     double width;
 
@@ -723,14 +723,11 @@ void StradaIRE::WriteMInfo(const char* fname, double dai, int vtype) {
     yo = FLT_MAX ;
     xm = 0;
     ym = 0;
-    //    float yo = min_y;
-//    float xm = max_x;
-//    float ym = max_y;
-
-    if( (fp_mif = fopen(file_name, "wt")) != NULL ) {
+	errno_t error = fopen_s(&fp_mif, file_name, "wt");
+	if (error == 0 && fp_mif != NULL) {
         set_fname(fname, file_name, "mid" );
-        if( (fp_mid = fopen(file_name, "wt")) != NULL ) {
-
+		error = fopen_s(&fp_mid, file_name, "wt");
+        if(error == 0 && fp_mid != NULL) {
               conv(1,0);
 
               for( int i=0; i < nLink ; i++) {
@@ -797,9 +794,8 @@ void StradaIRE::WriteMInfo(const char* fname, double dai, int vtype) {
 /////////////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////////////
-void StradaIRE::calc_mixy(double xi, double yi, double xj, double yj,
-                                                            double width) {
-    double r = sqrt(pow(xi-xj,2)+pow(yi-yj,2)); //長さ
+void StradaIRE::calc_mixy(double xi, double yi, double xj, double yj, double width) {
+    double r = sqrt(pow(xi-xj,2)+pow(yi-yj,2));
     double dx,dy;
     double w = width / 2;
     if(r == 0) {

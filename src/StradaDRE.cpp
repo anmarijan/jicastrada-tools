@@ -1,3 +1,4 @@
+#include <pch.h>
 //---------------------------------------------------------------------------
 #include <new>
 #include <stdio.h>
@@ -27,11 +28,11 @@ int NodeDirection::Read(FILE* fp){
 	if( fgets(buf, 256, fp) == NULL ) return -1;
 //	length = strlen(buf);
 //	if( length < 190 ) return -1;
-	strncpy( s_node, &buf[ 0], 10 ); trim(s_node,11); s_node[10]  = '\0';
-	strncpy( s_link, &buf[10], 10 ); trim(s_link,11); s_link[10]  = '\0';
-	strncpy( name  , &buf[20], 10 ); trim(name,11)  ; name[10]  = '\0';
-	strncpy( e_link, &buf[30], 10 ); trim(e_link,11); e_link[10]  = '\0';
-	strncpy( e_node, &buf[40], 10 ); trim(e_node,11); e_node[10]  = '\0';
+	strncpy_s( s_node, sizeof(s_node), &buf[ 0], 10 ); trim(s_node,11); s_node[10]  = '\0';
+	strncpy_s( s_link, sizeof(s_link), &buf[10], 10 ); trim(s_link,11); s_link[10]  = '\0';
+	strncpy_s( name  , sizeof(name), &buf[20], 10 ); trim(name,11)  ; name[10]  = '\0';
+	strncpy_s( e_link, sizeof(e_link),&buf[30], 10 ); trim(e_link,11); e_link[10]  = '\0';
+	strncpy_s( e_node, sizeof(e_node),&buf[40], 10 ); trim(e_node,11); e_node[10]  = '\0';
 	total = getbufInt(buf, 50, 7 );
 	for(int i=0; i < 10; i++)
 		vol[i] = getbufInt(buf, 57+7*i, 7);
@@ -102,11 +103,14 @@ int StradaDRE::Read(FILE* fp) {
 }
 
 void StradaDRE::Read(char* fname) {
-	FILE* fp;
-	if((fp = fopen(fname ,"rt"))==NULL) throw std::runtime_error("DRE2");
-	int ret = Read(fp);
-	fclose(fp);
-	if( ret == -1 ) throw std::runtime_error("DRE2");
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, fname, "rt");
+	if( error != 0 || fp == NULL) throw std::runtime_error("DRE2");
+	else {
+		int ret = Read(fp);
+		fclose(fp);
+		if (ret == -1) throw std::runtime_error("DRE2");
+	}
 }
 
 void StradaDRE::Write(FILE* fp){
@@ -120,7 +124,8 @@ void StradaDRE::Write(FILE* fp){
 
 void StradaDRE::Write(const char* fname){
 	FILE* fp;
-	if( (fp=fopen(fname,"wt")) != NULL ) {
+	errno_t error = fopen_s(&fp, fname, "wt");
+	if( error == 0 && fp  != NULL ) {
 		Write(fp);
 		fclose(fp);
 	}

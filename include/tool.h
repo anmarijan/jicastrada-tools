@@ -11,15 +11,16 @@ char* get_path(const char* fname, char* target);
 void set_fname(const char* f_str, char* dst_str, const char* f_ext);
 char* getKey(char* key,const char* s1, const char* s2);
 char* substring(char* dst, const char* buff,int s, int e);
-char* trim(char* str, int max);	//文字の前後から空白を取り除く
+char* trim(char* str, int max);
 char* trim(char* str);
-int getbufInt(char* buf, int p, int c);
-float getbufFlt(char* buf, int p, int c);
+int getbufInt(const char* buf, int p, int c);
+float getbufFlt(const char* buf, int p, int c);
 double getbufDbl(char* buf, int p, int c);
-bool repstrrtn(char* buf, int c);	//改行をNULLに変換する
+bool repstrrtn(char* buf, int c);	// replace RET(\n) with NULL
 void chomp(char* buf);
-int maxlinelen(FILE* fp, char* buffer, int size); //テキストファイルの一行の最大値を計算する。
-char* float_print(char* buf, float x);//有効桁数４印字幅５
+int maxlinelen(FILE* fp, char* buffer, int size); // Calculate the max numbers of text file
+char* float_print(char* buf, float x);// Number of significant digits = 4 and width = 5
+char* fixfloat(char* buff, double value, int width, int ndig = 7);
 char* fixfloat(char* buff, float value, int width, int ndig=7);
 bool getconfig(const char* fname, char* key, char* dst);
 char* strnstr(char* target, char* s, int size);

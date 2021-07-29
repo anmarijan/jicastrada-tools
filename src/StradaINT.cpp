@@ -1,12 +1,17 @@
+#include <pch.h>
+//---------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <float.h>	//FLT_MAX
+#include <cstring>
+#include <cfloat>	//FLT_MAX
 //---------------------------------------------------------------------------
 #include <string>
 #include <vector>
 #include <set>
 #include <stdexcept>
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
 //---------------------------------------------------------------------------
 #include "tool.h"
 #include "StradaINT.h"
@@ -23,7 +28,7 @@ if(kip == NULL) throw std::runtime_error("CSV in IRELink Dummy XY"); \
 
 static char buff[INT_BUF];
 //---------------------------------------------------------------------------
-//! 大小比較用の構造体
+// For "sort by name"
 //---------------------------------------------------------------------------
 struct StradaINTComparison {
 	bool operator () (INTLinkV2 * t1, INTLinkV2 * t2) const
@@ -59,6 +64,7 @@ INTLinkV2::INTLinkV2() : SLinkV2(){
 //
 ////////////////////////////////////////////////////////////////////////////////
 INTLinkV2::INTLinkV2(SLinkV2& s) : SLinkV2(s) {
+	ref_counter = 0;
 	for(int i=0; i < 10; i++) fare[i] = 0.0;
 	color = '0';
 	bLinkOD = false;
@@ -76,71 +82,63 @@ INTLinkV2& INTLinkV2::operator=(const INTLinkV2& obj) {
 	return (*this);
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	１ライン分を読み込む（Ver2形式）
+//	Read 1 line (Ver2)
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::Read(char* link_str){
-
+	std::string buff = link_str;
+	std::string str;
 	char temp[20];
-
-	strncpy(name, &link_str[0], 10);	trim(name,11);	name[10]  = '\0';
-	strncpy(sNode, &link_str[10], 10);	trim(sNode,11); sNode[10] = '\0';
-	strncpy(eNode, &link_str[20], 10);	trim(eNode,11); eNode[10] = '\0';
+	str = buff.substr(0, 10); boost::trim(str); strcpy_s(name, sizeof(name), str.c_str());
+	str = buff.substr(10, 10); boost::trim(str); strcpy_s(sNode, sizeof(sNode), str.c_str());
+	str = buff.substr(20, 10); boost::trim(str); strcpy_s(eNode, sizeof(eNode), str.c_str());
 	if( name[0] == '\0' || sNode[0] == '\0' || eNode[0] == '\0') return false;
-
-	memset(temp, 0, 20); strncpy(temp, &link_str[30], 7); temp[sizeof(temp) - 1] = 0;
-	length = (float)atof( temp );
-	memset(temp,0, 20); strncpy( temp, &link_str[37], 5) ;
-	Vmax   = (float)atof( temp );
-	memset(temp,0, 20); strncpy( temp, &link_str[42], 8) ;
-	Capa   = (float)atof( temp );
-	memset(temp,0, 20); strncpy( temp, &link_str[50], 3) ;
-	QV	   = atoi(temp );
+	length = std::stof(buff.substr(30, 7));
+	Vmax = std::stof(buff.substr(37, 5));
+	Capa = std::stof(buff.substr(42, 8));
+	QV = std::stoi(buff.substr(50, 3));
 
 	char c;
 	memset(temp, 0, 20);
 	for(int i=0; i < 10; i++ ) {
-		fare[i] = (float)atof(strncpy( temp, &link_str[53+i*5], 5));
-		c = link_str[103+i];
+		str = buff.substr(53 + i * 5, 5);
+		fare[i] = std::stof(buff);
+		c = buff[103+i];
 		if( c != '1' && c != '2' && c != '3') c = '0';
 		ways[i] = c;
 	}
-	linktype = link_str[113];
-	if( link_str[114] == '1' ) evaluation = false;
+	linktype = buff[113];
+	if( buff[114] == '1' ) evaluation = false;
 		else evaluation = true;
 
-	display = link_str[115];
-	aFlag1	= link_str[116];
-	memset(temp, 0, 20); strncpy( temp, &link_str[117], 2 );
-	nFlag2 = atoi( temp );
-	memset(temp, 0, 20); strncpy( temp, &link_str[119], 2 );
-	nFlag3 = atoi( temp );
-	aFlag4[0] = link_str[121]; aFlag4[1] = link_str[122];
-	aFlag5[0] = link_str[123]; aFlag5[1] = link_str[124]; aFlag5[2] = link_str[125];
-	color = link_str[126];
-	memset(temp,0, 20);
-	iX = (float)atof( strncpy( temp, &link_str[140], 10)) ;
-	iY = (float)atof( strncpy( temp, &link_str[150], 10)) ;
-	jX = (float)atof( strncpy( temp, &link_str[160], 10)) ;
-	jY = (float)atof( strncpy( temp, &link_str[170], 10)) ;
-	temp[5] = '\0';
-	dummy = atoi( strncpy( temp, & link_str[180], 5));
+	display = buff[115];
+	aFlag1	= buff[116];
+	nFlag2 = std::stoi(str = buff.substr(117, 2));
+	nFlag3 = std::stoi(str = buff.substr(119, 2));
+	aFlag4[0] = buff[121]; aFlag4[1] = buff[122];
+	aFlag5[0] = buff[123]; aFlag5[1] = buff[124]; aFlag5[2] = buff[125];
+	color = buff[126];
+	iX = std::stof(buff.substr(140, 10));
+	iY = std::stof(buff.substr(150, 10));
+	jX = std::stof(buff.substr(160, 10));
+	jY = std::stof(buff.substr(170, 10));
+	dummy = std::stoi(buff.substr(180,5));
     if( dummy < 0 || dummy > 3 ) return false;
 	if( dummy > 0 ){
-		dX[0] = (float)atof( strncpy( temp, &link_str[185], 10)) ;
-		dY[0] = (float)atof( strncpy( temp, &link_str[195], 10)) ;
+		dX[0] = std::stof(buff.substr(185, 10));
+		dY[0] = std::stof(buff.substr(195, 10));
 		if(dummy > 1) {
-		dX[1] = (float)atof( strncpy( temp, &link_str[205], 10)) ;
-		dY[1] = (float)atof( strncpy( temp, &link_str[215], 10)) ;
+		dX[1] = std::stof(buff.substr(205, 10)); 
+		dY[1] = std::stof(buff.substr(215, 10));
 			if(dummy > 2 ) {
-				dX[2] = (float)atof( strncpy( temp, &link_str[225], 10) ) ;
-				dY[2] = (float)atof( strncpy( temp, &link_str[235], 10) ) ;
+				dX[2] = std::stof(buff.substr(225, 10));
+				dY[2] = std::stof(buff.substr(235, 10));
 			}
 		}
 	}
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-// 属性のみを複写する
+// Copy attributes only
 ////////////////////////////////////////////////////////////////////////////////
 void INTLinkV2::set_attr(INTLinkV2& link) {
 	Vmax = link.Vmax;
@@ -163,83 +161,53 @@ void INTLinkV2::set_attr(INTLinkV2& link) {
 	aFlag5[2] = link.aFlag5[2];
 	color   = link.color;
 }
+#define SAFE_CPY(A,B) strncpy_s(A , sizeof((A)), B , sizeof((A))-1 ); A[sizeof(A)-1]=0; trim(A);
 ////////////////////////////////////////////////////////////////////////////////
-//	１ライン分を読み込む（CSV Ver2形式）
+//	Read a line of Ver2 CSV format 
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::ReadCSV(char* link_str) {
-	char* kip;
-	int counter = 0;	// , の数を数える（40以上であるはず）
-	char temp[20];
-	kip = link_str;
-	while( *kip != '\0') {
-		if(*kip == ',' ) counter++;
-		kip++;
-	}
-	if ( counter < 40 ) throw  std::runtime_error("CSV in INTLink");
-	kip = strtok(link_str, ","); dqconv(kip, name, 10); trim(name);
-	kip = strtok(NULL,","); dqconv(kip, sNode, 10);  trim(sNode);
-	kip = strtok(NULL,","); dqconv(kip, eNode, 10); trim(eNode);
-    kip = strtok(NULL,","); length = (float)atof(kip);
-    kip = strtok(NULL,","); Vmax   = (float)atof(kip);
-    kip = strtok(NULL,","); Capa   = (float)atof(kip);
-    kip = strtok(NULL,","); QV     = atoi(kip);
+	char* pdata[41];
+	char* temp = csv_parser(link_str, pdata, 40, ',', '.'); //destroy buf
 
-    for(int i=0; i < 10; i++) {
-		kip = strtok(NULL,",");
-		fare[i] = (float)atof(kip);
-	}
-
-	for(int i=0; i < 10; i++) {
-		kip = strtok(NULL,",");
-		ways[i] = *kip;
-	}
-	kip = strtok(NULL,","); linktype = *kip;
-	kip = strtok(NULL,",");
-    if( *kip == '0') evaluation = true; else evaluation = false;
-	kip = strtok(NULL,","); display = *kip;
-	kip = strtok(NULL,","); dqconv(kip, temp, 1); aFlag1 = temp[0];
-	kip = strtok(NULL,","); nFlag2 = atoi(kip);
-	kip = strtok(NULL,","); nFlag3 = atoi(kip);
-	kip = strtok(NULL,","); dqconv(kip, temp, 2);
-	counter = 0;
-	while( temp[counter] != 0 && counter < 2 ) {
-		aFlag4[counter] = temp[counter];
-		counter++;
-	}
-	kip = strtok(NULL,","); dqconv(kip, temp, 3);
-	for( counter=0; temp[counter] != 0 && counter < 3 ; counter++) aFlag5[counter] = temp[counter];
-
-	kip = strtok(NULL,",");	color = *kip;
-
-	kip = strtok(NULL,","); iX = (float)atof(kip);
-	kip = strtok(NULL,","); iY = (float)atof(kip);
-	kip = strtok(NULL,","); jX = (float)atof(kip);
-	kip = strtok(NULL,","); jY = (float)atof(kip);
-
-	kip = strtok(NULL,","); dummy = atoi(kip);
-
-	if( dummy > 0 ) {
-		READ_DUMMY_XY( dX[0] )
-		READ_DUMMY_XY( dY[0] )
-		if( dummy > 1 ) {
-			READ_DUMMY_XY( dX[1] )
-			READ_DUMMY_XY( dY[1] )
-			if( dummy > 2 ) {
-				READ_DUMMY_XY( dX[2] )
-				READ_DUMMY_XY( dY[2] )
-			}
-		}
+	SAFE_CPY(name, pdata[0]);
+	SAFE_CPY(sNode, pdata[1]);
+	SAFE_CPY(eNode, pdata[2]);
+	length = (float)atof(pdata[3]);
+	Vmax = (float)atof(pdata[4]);
+	Capa = (float)atof(pdata[5]);
+	QV = atoi(pdata[6]);
+	for (int i = 0; i < 10; i++) fare[i] = (float)atof(pdata[7 + i]);
+	for (int i = 0; i < 10; i++) ways[i] = pdata[17 + i][0];
+	linktype = pdata[27][0];
+	char a = pdata[28][0];
+	if (a == '0') evaluation = true; else evaluation = false;
+	display = pdata[29][0];
+	aFlag1 = pdata[30][0];
+	nFlag2 = atoi(pdata[31]);
+	nFlag3 = atoi(pdata[32]);
+	for (int counter = 0; pdata[33][counter] != 0 && counter < 2; counter++) aFlag4[counter] = pdata[33][counter];
+	for (int counter = 0; pdata[34][counter] != 0 && counter < 3; counter++) aFlag5[counter] = pdata[34][counter];
+	color = pdata[35][0];
+	iX = (float)atof(pdata[36]);
+	iY = (float)atof(pdata[37]);
+	jX = (float)atof(pdata[38]);
+	jY = (float)atof(pdata[39]);
+	dummy = atoi(pdata[40]);
+	if (dummy > 0 && temp != 0) csv_parser(temp, pdata, dummy * 2, ',', '.');
+	for (int i = 0; i < dummy; i++) {
+		dX[i] = (float)atof(pdata[2 * i]);
+		dY[i] = (float)atof(pdata[2 * i + 1]);
 	}
 	return true;
 }
 
-#define SAFE_CPY(A,B) strncpy(A ,B , sizeof((A))-1 ); A[sizeof(A)-1]=0; trim(A);
+
 ////////////////////////////////////////////////////////////////////////////////
-//	１ライン分を読み込む（Ver4形式）
+//	Read a line in Ver4 format
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::ReadAsV4(char* buf) {
     char* pdata[46];
-	char* temp = csv_parser(buf, pdata, 45, ',', '.'); //buf の内部を破壊する
+	char* temp = csv_parser(buf, pdata, 45, ',', '.'); //destroy buf
 
 	SAFE_CPY(name, pdata[0]);
 	SAFE_CPY(sNode, pdata[1]);
@@ -275,7 +243,7 @@ bool INTLinkV2::ReadAsV4(char* buf) {
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	１ライン分を読み込む（Ver1形式）
+//	Read a line (Ver1)
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::ReadAsV1(char* buf){
 
@@ -285,7 +253,7 @@ bool INTLinkV2::ReadAsV1(char* buf){
 ////////////////
 	length = getbufFlt(buf,15,5); //if(errno==ERANGE) return false;
 	Vmax = getbufFlt(buf,20,5);   //if(errno==ERANGE) return false;
-	Capa = getbufFlt(buf,25,8);   // Capa > 0 のはずだが
+	Capa = getbufFlt(buf,25,8);   // Capa > 0
 	QV	 = getbufInt(buf,33,2);
 	for(int i = 0; i < 5 ; i++ ) {
 		fare[i] = getbufFlt(buf,35 + i * 5, 5);
@@ -293,7 +261,7 @@ bool INTLinkV2::ReadAsV1(char* buf){
 	}
 	char c;
 	for(int i=0; i < 5; i++) {
-		c = buf[60+i];	//1, 2, 3 以外は全て０とする。
+		c = buf[60+i];
 		if( c != '1' && c != '2' && c != '3') c = '0';
 		ways[i] = c;
 	}
@@ -310,7 +278,7 @@ bool INTLinkV2::ReadAsV1(char* buf){
 	return(true);
 }
 ////////////////////////////////////////////////////////////////////////////////
-//  リンクデータの書き込み（１行分）
+//  Read link data (one line)
 ////////////////////////////////////////////////////////////////////////////////
 void INTLinkV2::Write(FILE* fp){
 
@@ -345,7 +313,7 @@ void INTLinkV2::Write(FILE* fp){
 	fprintf(fp,"\n");
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	CSV書き込み
+//	CSV
 ////////////////////////////////////////////////////////////////////////////////
 void INTLinkV2::WriteCSV(FILE* fp, int version) {
     if( version == 2 ) {
@@ -376,7 +344,7 @@ void INTLinkV2::WriteCSV(FILE* fp, int version) {
     fprintf(fp,"\n");
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	方向制限のチェック
+//	Check direction
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::checkway(int m, int j){
 	bool ret;
@@ -410,14 +378,13 @@ int INTLinkV2::way() {
 StradaINT::StradaINT()
 {
 	nLink = nNode = 0;
-	memset(errmsg,'\0', 128);
-	memset(comment, 0, 256);
+	coordinate = 0; csv = true; version = 4;
 }
 
 StradaINT::~StradaINT(){
 }
 /////////////////////////////////////////////////////////////////////////////
-//  リンクリストが空である場合にn_link分のリンクを作成
+//  Create n_link links
 /////////////////////////////////////////////////////////////////////////////
 bool StradaINT::alloc_links(int n_link) {
     if( nLink > 0 ) return false;
@@ -428,7 +395,7 @@ bool StradaINT::alloc_links(int n_link) {
 			LinkPtr link = new INTLinkV2();
 			links.push_back(link);
 		}
-    } catch( std::bad_alloc& e ) {
+    } catch( std::bad_alloc& ) {
 		links.clear();
         return false;
     }
@@ -436,7 +403,7 @@ bool StradaINT::alloc_links(int n_link) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// CSV形式の場合、データ長が256を超える可能性がある。
+// 
 /////////////////////////////////////////////////////////////////////////////
 bool StradaINT::Read(FILE* fp)
 {
@@ -445,34 +412,33 @@ bool StradaINT::Read(FILE* fp)
 	int nrlink;
 	int nrnode;
 	int c;
-	char* kip;
 
 	if( fgets(buff,INT_BUF,fp) == NULL ) {
-		sprintf(errmsg, "INT2 cannot read 1st line of buffer");
+		errmsg = "INT2 cannot read 1st line of buffer";
 		return false;
 	}
 	if( strncmp(buff, "INT", 3 ) != 0 ) {
-		sprintf(errmsg, "INT2 Header line error");
+		errmsg = "INT2 Header line error";
 		return false;
 	}
     version = buff[3] - '0' ;
 	csv = ( buff[4] == '*' ) ? true : false;
 
     if( version != 1 && version != 2 && version != 4 ) {
-        sprintf(errmsg, "Version error");
+        errmsg = "Version error";
         return false;
     }
     if( version == 4 ) csv = true;
 
     buff[strlen(buff)-1]=0;
-    memset(comment, 0, 256);
+
     if( version < 4 ) {
-        sprintf(comment, &buff[5], 256);
+		comment = &buff[5];
     } else {
-        sprintf(comment, &buff[7], 256);
+		comment = &buff[7];
 	}
 	if( fgets(buff,INT_BUF,fp) == NULL ) {
-		sprintf(errmsg, "INT2 Cannot read 2nd line of buffer");
+		errmsg =  "INT2 Cannot read 2nd line of buffer";
 		return false;
 	}
 
@@ -489,21 +455,24 @@ bool StradaINT::Read(FILE* fp)
 			nrnode = getbufInt(buff, 5, 5 );
 			coordinate = getbufInt(buff, 10, 5 );
 		} else {
-			kip = strtok(buff, ","); KIP_ERROR; nrlink = atoi(kip);
-			kip = strtok(NULL, ","); KIP_ERROR; nrnode = atoi(kip);
-			kip = strtok(NULL, ","); KIP_ERROR; coordinate = atoi(kip);
+			std::string str = buff;
+			boost::tokenizer<boost::escaped_list_separator<char> > tokens(str);
+			boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+			nrlink = std::stoi(*it); ++it;
+			nrnode = std::stoi(*it); ++it;
+			coordinate = std::stoi(*it);
 		}
 	} catch(const std::exception& ) {
-		sprintf(errmsg, "INT2  LINK=%d NODE=%d COORDINATE=%d", nrlink, nrnode, coordinate);
+		errmsg = "INT2 LINK=" + std::to_string(nrlink) + " NODE=" + std::to_string(nrnode) + " COORDINATE=" + std::to_string(coordinate);
 		return false;
 	}
-	//行数を数える
+	//count the lines
 	c = 0;
 	while( fgets(buff, INT_BUF, fp) != NULL ){
 		c++;
 	}
 	if( c == 0 ) {
-		sprintf(errmsg, "INT2 There is no link field");
+		errmsg = "INT2 There is no link field";
 		return false;
 	}
 	for(int i=0; i < c; i++) {
@@ -524,32 +493,33 @@ bool StradaINT::Read(FILE* fp)
 		if( version == 2 ) {
 			if( csv ) {
 				if( link->ReadCSV(buff) == false ) {
-					sprintf(errmsg, "INT2 Link format incorrect");
+					errmsg =  "INT2 Link format incorrect";
 					check = false;
 					break;
 				}
 			} else if( link->Read(buff) == false ) {
-				sprintf(errmsg, "INT2 Link format incorrect");
+				errmsg =  "INT2 Link format incorrect";
 				check = false;
 				break;
 			}
 		}
 		else if ( version == 4 ) {
 			if( link->ReadAsV4(buff) == false ) {
-				sprintf(errmsg,"INT4 Link format incorrect");
+				errmsg = "INT4 Link format incorrect";
 				check = false;
 				break;
 			}
 		} else {
 			if( link->ReadAsV1(buff) == false ) {
-				sprintf(errmsg, "INT2 Link format ver 1 incorrect");
+				errmsg =  "INT2 Link format ver 1 incorrect";
 				check = false;
 				break;
 			}
 		}
 		links.push_back(link);
 		if( link_table.find(link->name) != link_table.end()) {
-			sprintf(errmsg, "INT2 Link name duplication %s", link->name);
+			std::string lname = link->name;
+			errmsg = "INT2 Link name duplication " + lname;
 			check = false;
 			break;
 		}
@@ -563,7 +533,7 @@ bool StradaINT::Read(FILE* fp)
 		return false;
 	}
 	nLink = c;
-	//始点と終点が同じ名前のリンクを削除する。
+	//Remove the link whose name of start and end nodes is the same
 	bool b_found_same_node = false;
 	std::list<LinkPtr>::iterator it = links.begin();
 	while( it != links.end()) {
@@ -580,32 +550,34 @@ bool StradaINT::Read(FILE* fp)
 	if (b_found_same_node) {
 		nLink = links.size();
 	}
-	memset(errmsg,'\0', 128);
+	errmsg = "";
 	if( nLink != nrlink) {
-		sprintf(errmsg, "No. of links changed [%5d] -> [%5d]\n",nrlink, nLink);
+		errmsg =  "No. of links changed [" + std::to_string(nrlink) + "] -> [" + std::to_string(nLink) + "]\n";
 	}
 	if( nrnode != (int)node_table.size() ) {
-		sprintf(buff, "No. of nodes changed [%5d] -> [%5d]\n",nrnode,node_table.size());
+		sprintf_s(buff, sizeof(buff), "No. of nodes changed [%5d] -> [%5zd]\n",nrnode,node_table.size());
 		nNode = node_table.size();
-		strcat(errmsg, buff);
+		errmsg.append(buff);
 	} else nNode = nrnode;
 
 	return true;
 }
 //----------------------------------------------------------------------------
-//!	ファイル名を指定して読み込み
+// Read INT file 
 //----------------------------------------------------------------------------
 void StradaINT::Read(const char* file_name){
-	FILE* fp;
-	if((fp = fopen(file_name ,"rt"))==NULL) {
+	FILE* fp = NULL;
+	errno_t error = fopen_s(&fp, file_name, "rt");
+	if(error != 0 || fp == NULL ) {
         std::string str1("Cannot open INT: ");
         std::string fname = file_name;
         throw std::runtime_error(str1 + fname);
-    }
-	bool ret = Read(fp);
-	fclose(fp);
-
-	if( ret == false ) throw std::runtime_error(errmsg);
+	}
+	else {
+		bool ret = Read(fp);
+		fclose(fp);
+		if (ret == false) throw std::runtime_error(errmsg);
+	}
 }
 
 void StradaINT::Write(FILE* fp){
@@ -624,7 +596,7 @@ void StradaINT::Write(FILE* fp){
     else
         fprintf(fp,"INT4*,. ");
 
-    fprintf(fp,"%s\n",comment);
+    fprintf(fp,"%s\n",comment.c_str());
     if( version == 2 ) {
         if( csv ) fprintf(fp,"%d,%d,%d\n",nLink,nNode,coordinate);
         else fprintf(fp,"%5d%5d%5d\n",nLink,nNode,coordinate);
@@ -639,15 +611,18 @@ void StradaINT::Write(FILE* fp){
 //	fprintf(fp, "%c", 0x1A);
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	ファイル名を指定して書き込み
+// Save as
 ////////////////////////////////////////////////////////////////////////////////
 void StradaINT::Write(char* file_name){
-	FILE* fp;
-	if((fp = fopen(file_name ,"wt"))==NULL) throw std::runtime_error("INT");
-	Write(fp);
-	fclose(fp);
+	FILE* fp =  NULL;
+	errno_t error = fopen_s(&fp, file_name, "wt");
+	if(error != 0 || fp == NULL) throw std::runtime_error("INT");
+	else {
+		Write(fp);
+		fclose(fp);
+	}
 }
-// 最初の値はi=0
+// First: i=0
 LinkPtr StradaINT::getLink(int i){
 	if(	 i < 0	||	i >= nLink ) return nullptr;
 	std::list<LinkPtr>::iterator it = std::next(links.begin(),i);
@@ -661,7 +636,7 @@ void StradaINT::clear(){
     nLink = 0;
 }
 ////////////////////////////////////////////////////////////////////////////////
-// 数学座標とスクリーン座標の変換を行う
+// Convert coordinate system
 ////////////////////////////////////////////////////////////////////////////////
 void StradaINT::conv(int cd, int mergin) {
 	if( coordinate != 0 && coordinate != 1) return;
@@ -682,16 +657,16 @@ void StradaINT::conv(int cd, int mergin) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// X1 Y1 X2 Y2 のテキストファイルから仮リンクファイルを作成する
+// Make temporary file from a text file of "X1 Y1 X2 Y2" format
 ////////////////////////////////////////////////////////////////////////////////
 int StradaINT::LinkXYRead(char* f_name) {
 
-	FILE* fp;
+	FILE* fp = NULL;
 	float x_1, x_2, y_1, y_2;
 
-	if( links.size() > 0 ) return -1;	//初期化していない。
-
-	if((fp = fopen(f_name ,"rt"))==NULL) return -2;
+	if( links.size() > 0 ) return -1;
+	errno_t error = fopen_s(&fp, f_name, "rt");
+	if (error != 0 || fp == NULL) return (-2);
 
 	nLink = line_cord_check(fp);
 	if( nLink < 1) {
@@ -715,20 +690,20 @@ int StradaINT::LinkXYRead(char* f_name) {
 	nNode = 0;
 	for(int i=0; i < 2*nLink; i++) {
 		if( nodes[i].name[0] == 'N' ) continue;
-		sprintf(nodes[i].name, "N%05d", i);
+		sprintf_s(nodes[i].name, sizeof(nodes[i].name),"N%05d", i);
 		nNode++;
 		for(int j=i+1; j < 2*nLink; j++) {
 			if(nodes[j].name[0] == 'N' ) continue;
 			if( nodes[i].X == nodes[j].X && nodes[i].Y == nodes[j].Y ) {
-				sprintf(nodes[j].name, "N%05d", i);
+				sprintf_s(nodes[j].name, sizeof(nodes[j].name),"N%05d", i);
 			}
 		}
 	}
 	for(int i=0; i < nLink; i++){
 		LinkPtr link = new INTLinkV2();
-		sprintf(link->name, "L%05d", i);
-		strncpy(link->sNode, nodes[2*i].name,  10);
-		strncpy(link->eNode, nodes[2*i+1].name,10);
+		sprintf_s(link->name, sizeof(link->name),"L%05d", i);
+		strncpy_s(link->sNode, sizeof(link->sNode),nodes[2*i].name,  10);
+		strncpy_s(link->eNode, sizeof(link->eNode),nodes[2*i+1].name,10);
 		link->iX = nodes[2*i].X;
 		link->iY = nodes[2*i].Y;
 		link->jX = nodes[2*i+1].X;
@@ -741,14 +716,14 @@ int StradaINT::LinkXYRead(char* f_name) {
 	return 0;
 }
 //----------------------------------------------------------------------------
-//! 名前で並び替え
+// Sort by name
 //----------------------------------------------------------------------------
 void StradaINT::sort() {
 	links.sort();
 }
 //-----------------------------------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////
-//  境界線の取得
+//  Get boundary
 ////////////////////////////////////////////////////////////////////////////////
 void INTLinkV2::get_boundary(double &x1, double &y1, double &x2, double &y2)
 {

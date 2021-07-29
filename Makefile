@@ -14,7 +14,8 @@ OBJS= $(OBJDIR)tool.o \
       $(OBJDIR)StradaAOD.o \
       $(OBJDIR)StradaZXY.o \
       $(OBJDIR)StradaGAD.o \
-      $(OBJDIR)StradaDRE.o
+      $(OBJDIR)StradaDRE.o \
+      $(OBJDIR)pch.o
 LFILE = lib/libstradatool.a
 
 all: $(LFILE) $(OBJS)

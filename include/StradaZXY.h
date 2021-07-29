@@ -14,7 +14,7 @@ public:
 	double x, y ;
 	int nPoint;
 	XYPoint* pt;
-	Border() : nPoint(0), pt(NULL) {} ;
+	Border() : x(0), y(0), nPoint(0), pt(NULL) {} ;
 	~Border();
 	void init(int n);
 	void set_center();
@@ -24,7 +24,7 @@ class StradaZXY {
 public:
 	int version;
 	int nZone;
-	int nBorder;	//境界線データの数がゾーン数に等しいとは限らない
+	int nBorder;
 	int scale;
 	int coordinate;
 	bool csv;
@@ -38,15 +38,14 @@ public:
 public:
 	XYPoint* zones;
 	Border* borders;
-	//	ZoneXY* getZone(int i);
 	StradaZXY();
 	~StradaZXY();
 	void init(int nZone, int nBorder);
 	void Write(const char* fname);
 	int Read(FILE* fp);
 	void Read(char* fname);
-	void conv(int cd, int mergin);	//数学座標<-->スクリーン座標
-	void circulate();//数学座標の時、閉曲線を全て時計回りにする
+	void conv(int cd, int mergin);
+	void circulate();
 	void clear();
 	void calc_boundary();
 	void WriteMInfo(char* fname);

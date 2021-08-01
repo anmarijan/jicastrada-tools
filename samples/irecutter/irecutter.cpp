@@ -8,9 +8,12 @@
 //---------------------------------------------------------------------------
 #include "StradaIRE.h"
 #include "tool.h"
-#include "stgetopt.h"
+#include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <boost/program_options.hpp>
 //---------------------------------------------------------------------------
 int mode;
 int max_mode;
@@ -23,55 +26,50 @@ double max_vol2[10];
 double max_total[10];
 
 struct RoadList {
-    char name[11];
-    char remark[21];
+    std::string name;
+    std::string remark;
 };
 
 std::vector<RoadList> link_list;
 
 void read_linkfile(const char* fname, int &count) {
-    FILE* fp;
-    char buf[256];
     int total = 0;
     int pos;
-    if( (fp = fopen(fname, "rt")) != NULL )
-    {
-        while( fgets(buf, 256, fp) != NULL ){
-			pos = 0;
-			while ( isspace(buf[pos])) pos++;
-			if( buf[pos] == '#' || buf[pos] == '\0' ) continue;
-            total++;
-        }
-        fseek(fp, 0, SEEK_SET );    //ファイルの先頭に戻る
-        try {
-        	link_list.resize(total);
-        } catch( std::bad_alloc& e) {
-			printf("Cannot allocate memory for %s.\n", fname);
-			printf("The total number of lines is %d.\n", total);
-			exit(1);
-		}
-		int i = 0;
-        while( fgets(buf, 256, fp) != NULL ){
-			pos = 0;
-			while ( isspace(buf[pos])) pos++;
-			if( buf[pos] == '#' || buf[pos] == '\0' ) continue;
-
-            buf[strlen(buf)-1] = '\0';
-            strncpy(link_list[i].name, buf, 10 );
-            link_list[i].name[10] = '\0';
-            strncpy(link_list[i].remark, buf+10, 20 );
-            link_list[i].remark[20] = '\0';
-
-            trim(link_list[i].name, 10);
-            trim(link_list[i].remark, 20);
-			i++;
-        }
-        count = total;
-        fclose(fp);
-    } else {
-		fprintf(stderr,"Cannot open file %s.\n", fname);
-        exit(1);
-    }
+	std::ifstream ifs(fname, std::ios_base::in);
+	if (!ifs) {
+		fprintf(stderr, "Cannot open file %s.\n", fname);
+		exit(1);
+	}
+	std::string buff;
+	while (std::getline(ifs, buff)) {
+		pos = 0;
+		while (isspace(buff[pos])) pos++;
+		if (buff[pos] == '#' || buff[pos] == '\0') continue;
+		total++;
+	}
+	ifs.clear();
+	ifs.seekg(0);
+	try {
+		link_list.resize(total);
+	}
+	catch (std::bad_alloc& ) {
+		printf("Cannot allocate memory for %s.\n", fname);
+		printf("The total number of lines is %d.\n", total);
+		exit(1);
+	}
+	int i = 0;
+	while (std::getline(ifs, buff)) {
+		pos = 0;
+		while (isspace(buff[pos])) pos++;
+		if (buff[pos] == '#' || buff[pos] == '\0') continue;
+		std::string str = buff.substr(0, 10);
+		link_list[i].name = str;
+		str = buff.substr(10, 20);
+		link_list[i].remark = str;
+		i++;
+	}
+	count = total;
+	ifs.close();
 }
 // sw = way
 void print_value(int sw, double vol1, double vol2) {
@@ -192,6 +190,7 @@ void usage() {
 
 int main(int argc, char* argv[])
 {
+	using namespace boost::program_options;
     if( argc < 4 || argv[2][0] != '-' || (argv[2][1] != 'f' && argv[2][1] != 'l') ) {
 		usage();
         exit(1);
@@ -207,21 +206,29 @@ int main(int argc, char* argv[])
     bool header = false;
     bool disp   = false;
 
+	options_description description("Options");
+	description.add_options()
+		("unit,u", value<std::string>(), "Specity the unit { pcu | veh | pax }")
+		("kms,k", "Multiplied by link length")
+		("mode,m", value<int>()->default_value(0), "Specify the mode number")
+		("max_mode,M", value<int>(), "Specify the number of modes to be displayed form mode 1")
+		("direction,d", value<std::string>(), "Specify the direciton")
+		("length,l", "Display length")
+		("speed,s", "Display speed")
+		("header,H", "Display header")
+		("prefix,p", "Use prefix")
+		("options,o", "Display options");
+	variables_map vm;
+	store(parse_command_line(argc, argv, description), vm);
+	notify(vm);
 
-// オプション読み込み
-	optarg = NULL;
-	optind = 4 ;
-	char ch;
-	char* type_arg = NULL;
-	char* way_arg = NULL;
+	std::string type_arg = "none";
+	std::string way_arg = "none";
 	char read_mode;
-// その他
 	bool match;
 	bool use_prefix = false;
 	bool disp_speed = false;
 	bool disp_length = false;
-	int pre_len;
-
 	read_mode = argv[2][1];
 
 //初期化
@@ -233,85 +240,66 @@ int main(int argc, char* argv[])
 		max_vol2[i]=0;
 		max_total[i]=0;
 	}
-
-	while( optind < argc ) {
-		ch = get_opt(argc, argv, "u:d:m:M:Hvpksl");
-		if( ch == EOF ) {
-			continue;
-		} else {
-			switch (ch) {
-			case 'u':
-				type_arg = optarg;
-				break;
-			case 'd':
-				way_arg = optarg;
-				break;
-			case 'm':
-				if( *optarg == '0' ) mode = 0;
-				else {
-					mode = atoi(optarg);
-					if( mode <= 0 || mode > 10) {
-						fprintf(stderr,"Wrong argument for -m.\n");
-						exit(1);
-					}
-				}
-				break;
-			case 'M':
-				max_mode = atoi(optarg);
-				if (max_mode > 10 ) max_mode = 10;
-				if (max_mode <= 0 ) {
-					fprintf(stderr,"Wrong argument for -M.\n");
-					exit(1);
-				}
-				break;
-			case 'H':
-				header = true;
-				break;
-			case 'v':
-				disp = true;
-				break;
-			case 'p':
-				use_prefix = true;
-				break;
-			case 'k':
-				kms = true;
-				break;
-			case 'l':
-				disp_length = true;
-				break;
-			case 's':
-				disp_speed = true;
-				break;
-			default:
-			;
-			}
+	if (vm.count("unit")) {
+		type_arg = vm["unit"].as<std::string>();
+	}
+	if (vm.count("direction")) {
+		way_arg = vm["direction"].as<std::string>();
+	}
+	if (vm.count("mode")) {
+		mode = vm["mode"].as<int>();
+		if (mode <= 0 || mode > 10) {
+			fprintf(stderr, "Wrong argument for -m.\n");
+			exit(1);
 		}
 	}
-	if( type_arg ) {
-		if( strcmp(type_arg, "pcu")==0 ) type=0;
-		else if(strcmp(type_arg,"veh")==0) type = 1;
-		else if(strcmp(type_arg,"pax")==0) type = 2;
-		else {
-			fprintf(stderr,"Wrong argument for -u.\n");
+	if (vm.count("max_mode")) {
+		max_mode = vm["max_mode"].as<int>();
+		if (max_mode > 10) max_mode = 10;
+		if (max_mode <= 0) {
+			fprintf(stderr, "Wrong argument for -M.\n");
 			exit(1);
 		}
-	} else type = 0;
-	if( way_arg ) {
-		if( strcmp(way_arg, "all")==0 ) way=0;
-		else if(strcmp(way_arg,"both")==0) way = 1;
-		else if(strcmp(way_arg,"peak")==0) way = 2;
-		else if(strcmp(way_arg,"1")==0) way = 3;
-		else if(strcmp(way_arg,"2")==0) way = 4;
-		else if(strcmp(way_arg,"total")==0) way = 5;
-		else {
-			fprintf(stderr,"Wrong argument for -d.\n");
-			exit(1);
-		}
-	} else way = 0;
+	}
+	if (vm.count("header")) {
+		header = true;
+	}
+	if (vm.count("options")) {
+		disp = true;
+	}
+	if (vm.count("prefix")) {
+		use_prefix = true;
+	}
+	if (vm.count("kms")) {
+		kms = true;
+	}
+	if (vm.count("length")) {
+		disp_length = true;
+	}
+	if (vm.count("speed")) {
+		disp_speed = true;
+	}
+	if( type_arg == "pcu" || type_arg == "none" ) type=0;
+	else if( type_arg == "veh" ) type = 1;
+	else if( type_arg == "pax" ) type = 2;
+	else {
+		fprintf(stderr,"Wrong argument for -u.\n");
+		exit(1);
+	}
+	if( way_arg == "all" || way_arg == "none" ) way=0;
+	else if(way_arg == "both") way = 1;
+	else if(way_arg == "peak") way = 2;
+	else if(way_arg == "1") way = 3;
+	else if(way_arg == "2") way = 4;
+	else if(way_arg == "total") way = 5;
+	else {
+		fprintf(stderr,"Wrong argument for -d.\n");
+		exit(1);
+	}
 
     try {
         s_ire.Read(argv[1]);
-    } catch (std::runtime_error& e) {
+    } catch (std::runtime_error& ) {
 		fprintf(stderr,"Cannot read file %s.\n", argv[1]);
 		exit(1);
 	}
@@ -383,7 +371,7 @@ int main(int argc, char* argv[])
 			if (use_prefix ) {
 				for(int j=0; j < s_ire.nLink; j++) {
 					link = s_ire.getLink(j);
-					if( strncmp( link->name, link_list[i].name, strlen(link_list[i].name)) == 0 ) {
+					if( strncmp( link->name, link_list[i].name.c_str(), strlen(link_list[i].name.c_str())) == 0 ) {
 						printf("%-10s", link->name);
 						if( disp_length) printf("%8.2f", link->length);
 						if( disp_speed ) printf("%8.2f%8.2f", link->result[0].ltSp, link->result[1].ltSp);
@@ -394,20 +382,20 @@ int main(int argc, char* argv[])
 			} else {
 				if( linkhash.find(link_list[i].name) != linkhash.end()) {
 					link = linkhash[link_list[i].name];
-					printf("%-10s", link_list[i].name);
+					printf("%-10s", link_list[i].name.c_str());
 					if( disp_length) printf("%8.2f", link->length);
 					if( disp_speed ) printf("%8.2f%8.2f", link->result[0].ltSp, link->result[1].ltSp);
 					display_link(link);
 					puts("");
 				} else {
-					fprintf(stderr, "Cannot find %s in %s.\n", link_list[i].name, argv[1]);
+					fprintf(stderr, "Cannot find %s in %s.\n", link_list[i].name.c_str(), argv[1]);
 				}
 			}
         }
 	} else {
 		//リンクを一つだけ指定する場合
 		if( use_prefix) {
-			pre_len = strlen(argv[3]);
+			size_t pre_len = strlen(argv[3]);
 			for(int i=0; i < s_ire.nLink; i++) {
 				link = s_ire.getLink(i);
 				if( strncmp(argv[3], link->name, pre_len ) == 0 ) {

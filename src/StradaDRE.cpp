@@ -28,11 +28,11 @@ int NodeDirection::Read(FILE* fp){
 	if( fgets(buf, 256, fp) == NULL ) return -1;
 //	length = strlen(buf);
 //	if( length < 190 ) return -1;
-	strncpy_s( s_node, sizeof(s_node), &buf[ 0], 10 ); trim(s_node,11); s_node[10]  = '\0';
-	strncpy_s( s_link, sizeof(s_link), &buf[10], 10 ); trim(s_link,11); s_link[10]  = '\0';
-	strncpy_s( name  , sizeof(name), &buf[20], 10 ); trim(name,11)  ; name[10]  = '\0';
-	strncpy_s( e_link, sizeof(e_link),&buf[30], 10 ); trim(e_link,11); e_link[10]  = '\0';
-	strncpy_s( e_node, sizeof(e_node),&buf[40], 10 ); trim(e_node,11); e_node[10]  = '\0';
+	strncpy_s( s_node, 11, &buf[ 0], 10 ); trim(s_node);
+	strncpy_s( s_link, 11, &buf[10], 10 ); trim(s_link);
+	strncpy_s( name  , 11, &buf[20], 10 ); trim(name)  ;
+	strncpy_s( e_link, 11,&buf[30], 10 ); trim(e_link);
+	strncpy_s( e_node, 11,&buf[40], 10 ); trim(e_node);
 	total = getbufInt(buf, 50, 7 );
 	for(int i=0; i < 10; i++)
 		vol[i] = getbufInt(buf, 57+7*i, 7);
@@ -46,7 +46,7 @@ int NodeDirection::Read(FILE* fp){
 	return (1);
 }
 
-void NodeDirection::Write(FILE* fp) {
+void NodeDirection::Write(FILE* fp) const {
 	fprintf(fp,"%10s%10s%10s%10s%10s%7d",
 		s_node, s_link, name, e_link, e_node, total);
 	for(int i=0; i < 10; i++)
@@ -57,15 +57,12 @@ void NodeDirection::Write(FILE* fp) {
 }
 
 StradaDRE::StradaDRE(){
-	direc = NULL;
 	nNode = 0;
 	nMode = 0;
-	nDirection = 0;
 	coordinate = 0;
 }
 
 StradaDRE::~StradaDRE(){
-	delete[] direc;
 }
 
 int StradaDRE::Read(FILE* fp) {
@@ -84,21 +81,19 @@ int StradaDRE::Read(FILE* fp) {
 		count++;
 	}
 	if( count == 0 ) return -1;
-	nDirection = count;
 
 	fseek( fp, 0, SEEK_SET );
 	fgets(buf, 256, fp);
 	fgets(buf, 256, fp);
 
-	direc = new NodeDirection[nDirection];
-
-	for(int i=0; i < count ; i++ )
-		if( direc[i].Read(fp)  == -1) {
-			delete[] direc;
-			nDirection = 0;
-			direc = NULL;
+	NodeDirection ND;
+	for (int i = 0; i < count; i++) {
+		if (ND.Read(fp) == -1) {
+			direc.clear();
 			return -1;
 		}
+		direc.push_back(ND);
+	}
 	return 1;
 }
 
@@ -116,8 +111,8 @@ void StradaDRE::Read(char* fname) {
 void StradaDRE::Write(FILE* fp){
 	fprintf(fp,"DRE2 jWtrf2\n");
 	fprintf(fp,"%5d%5d%5d\n", nNode, nMode, coordinate);
-	for( int i = 0; i < nDirection; i++ ) {
-		direc[i].Write(fp);
+	for(const auto& d: direc) {
+		d.Write(fp);
 	}
 }
 

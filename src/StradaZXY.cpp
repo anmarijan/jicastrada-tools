@@ -461,20 +461,25 @@ void StradaZXY::calc_boundary() {
 /////////////////////////////////////////////////////////////////////////////
 // MapInfo format
 /////////////////////////////////////////////////////////////////////////////
-void StradaZXY::WriteMInfo(char* fname) {
+void StradaZXY::WriteMInfo(const char* fname) {
 
     FILE* fp_mif;
     FILE* fp_mid;
-	char file_name[MAXPATH];
-    set_fname(fname, file_name, "mif" );
+	std::string file_name;
+	std::string fullname = fname;
+	std::string bodyname;
+	size_t pos = fullname.find_last_of(".");
+	if (pos > 0) bodyname = fullname.substr(0, pos);
+	else bodyname = fullname;
+	file_name = bodyname + ".mif";
     double xo = min_x;
     double yo = min_y;
     double xm = max_x;
     double ym = max_y;
-	errno_t error = fopen_s(&fp_mif, file_name, "wt");
+	errno_t error = fopen_s(&fp_mif, file_name.c_str(), "wt");
     if(error == 0 && fp_mif != NULL ) {
-        set_fname(fname, file_name, "mid" );
-		error = fopen_s(&fp_mid, file_name, "wt");
+		file_name = bodyname + ".mid";
+		error = fopen_s(&fp_mid, file_name.c_str(), "wt");
         if( error == 0 && fp_mid != NULL ) {
               fprintf(fp_mif,"Version 300\n");
               fprintf(fp_mif,"Charset \"WindowsJapanese\"\n");
@@ -508,8 +513,13 @@ void StradaZXY::WriteMInfo(char* fname, StradaGAD& gad) {
 
 	FILE* fp_mif = NULL;
 	FILE* fp_mid = NULL;
-	char file_name[MAXPATH];
-	set_fname(fname, file_name, "mif" );
+	std::string file_name;
+	std::string fullname = fname;
+	size_t pos = fullname.find_last_of(".");
+	std::string bodyname;
+	if (pos > 0) bodyname = fullname.substr(0, pos);
+	else bodyname = fullname;
+	file_name = bodyname + ".mif";
 	double xo = min_x;
 	double yo = min_y;
 	double xm = max_x;
@@ -517,10 +527,10 @@ void StradaZXY::WriteMInfo(char* fname, StradaGAD& gad) {
 	if( gad.nZone != nZone) {
 		printf("No of zones is different GAD:%d, ZXY:%d\n", gad.nZone, nZone);
 	}
-	errno_t error = fopen_s(&fp_mif, file_name, "wt");
+	errno_t error = fopen_s(&fp_mif, file_name.c_str(), "wt");
 	if(error == 0 && fp_mif != NULL ) {
-		set_fname(fname, file_name, "mid" );
-		error = fopen_s(&fp_mid, file_name, "wt");
+		file_name = bodyname + ".mid";
+		error = fopen_s(&fp_mid, file_name.c_str(), "wt");
 		if(error == 0 && fp_mif != NULL) {
 			  fprintf(fp_mif,"Version 300\n");
 			  fprintf(fp_mif,"Charset \"WindowsJapanese\"\n");

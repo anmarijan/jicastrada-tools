@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 		printf("start\n");
 		par.Read(argv[1]);
 		printf("Success!\n");
-		printf("%s\n",par.name);
+		printf("%s\n",par.name.c_str());
 		par.print_data();
 	}catch (std::exception& e ) {
 		printf("%s\n", e.what());

@@ -3,18 +3,8 @@
 #define StradaDREH
 //---------------------------------------------------------------------------
 #include <stdlib.h>
+#include <vector>
 //---------------------------------------------------------------------------
-/*
-class NodeOD {
-public:
-	char name[11];
-	int  data[4][4];
-	char s_nodes[4][11];
-	char e_nodes[4][11];
-public:
-	NodeOD();
-};
-*/
 class NodeDirection {
 public:
 	char name[11];
@@ -28,17 +18,15 @@ public:
 public:
 	NodeDirection();
 	int Read( FILE* fp);
-	void Write( FILE* fp);
+	void Write( FILE* fp) const;
 };
 
 class StradaDRE {
 public:
-	int nDirection;
 	int nNode;
 	int nMode;
 	int coordinate;
-	NodeDirection* direc;
-//	  NodeOD* nod;
+	std::vector<NodeDirection> direc;
 public:
 	StradaDRE();
 	~StradaDRE();

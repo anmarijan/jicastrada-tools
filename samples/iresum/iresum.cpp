@@ -12,10 +12,11 @@
 #include "StradaIRE.h"
 #include "StradaPAR.h"
 #include "tool.h"
-#include "stgetopt.h"
 //---------------------------------------------------------------------------
 #include <string>
 #include <set>
+// #include <boost/algorithm/string/trim.hpp>
+#include <boost/program_options.hpp> 
 
 // 車種別に速度調整がされている場合がある。
 
@@ -28,6 +29,7 @@ void usage() {
 	puts("\nOutput: UP  = Vehilce-km  Down= Passenger-hours");
 	puts("\nire_file   File name of IRE file in JICA STRADA format");
 	puts("");
+	/*
 	puts("Options");
 	puts("fname.par  Parameter file for speed adjustment");
 	puts("-e n       Excludes when evaluation flag == n");
@@ -41,6 +43,7 @@ void usage() {
 	puts("-s         Use free speed");
 	puts("-l         -s ignored when link type is not 0");
 	puts("-v         Display the accepted options");
+	*/
 }
 
 void read_free_speed() {
@@ -84,6 +87,7 @@ bool read_linkfile(const char* fname) {
 
 int main(int argc, char* argv[])
 {
+	using namespace boost::program_options;
     if( argc < 2 ) {
 		usage();
         exit(1);
@@ -92,133 +96,120 @@ int main(int argc, char* argv[])
 
     StradaIRE s_ire;
     StradaPAR s_par;
-    char fname[260];
     IRELinkPtr link;
 
 	double veh_hr[10];
 	double pss_hr[10];
 	double pcu_hr[10];
-
 	double veh_km[10];
 	double pss_km[10];
 	double pcu_km[10];
 	double PCU[10];
 	double sp_adj[10];
-
-//	double revenue[10];
-
 	double pk, ph;
 
-// オプション読み込み
-	optarg = NULL;
-	optind = 2 ;
-	char ch;
 // その他
 	bool use_linklist = false;
 	bool use_eval = false;
 	bool eval_flag;
 	bool use_user1 = false;
 	bool excl_user1 = false;
-	char user[260];
+	std::string user;
 	bool disp = false;
 	bool sp_reset = false;	//QV式が9である場合、最終速度が0でもVmaxを使う。
 	bool tab_separate = false;
 	bool use_maxspeed = false;
 	bool excl_linktype = false; //Exclude linktype=1 and 2 for free speed
 	int in_out = 0;	//合計、内々、内外、外外
-	int num;
 	int width = 8;
-	char* p;
 	bool check;
 
 	max_mode = 10;
 	for(int i=0; i < 10; i++) sp_adj[i] = 1.0;
-	while( optind < argc ) {
-		ch = get_opt(argc, argv, "e:u:U:M:i:f:w:vt9sl");
-		if( ch == EOF ) {
-			get_ext(optarg, fname);
-			conv_upper(fname);
-			if( strcmp(fname, "PAR") == 0 ) {
-				try {
-					s_par.Read(optarg);
-					for(int i=0; i < 10; i++) {
-						if( s_par.sp_modify[i] == 0 ) sp_adj[i] = 1.0;
-						else sp_adj[i] = s_par.sp_modify[i];
-					}
-				} catch ( std::runtime_error& e ) {
-					fprintf(stderr,"Cannot read %s.\n", optarg);
-				}
-			}
-			continue;
-		} else {
-			switch (ch) {
-			case 'M':
-				max_mode = atoi(optarg);
-				if (max_mode > 10 ) max_mode = 10;
-				if (max_mode <= 0 ) {
-					fprintf(stderr,"Wrong argument for -M.\n");
-					exit(1);
-				}
-				break;
-			case 'e':
-				use_eval = true;
-				if( optarg[0] == '0' && optarg[1] == '\0' ) eval_flag = false;
-				else if( optarg[0] == '1' && optarg[1] == '\0' ) eval_flag = true;
-				else use_eval = false;
-				break;
-			case 'f':
-				if (read_linkfile(optarg) ) use_linklist = true;
-				break;
-			case 'u':
-				use_user1 = true;
-				excl_user1 = false;
-				num = 0;
-				while( optarg[num] != '\0' ) {
-					user[num] = optarg[num];
-					num++;
-				}
-				user[num] = '\0';
-				break;
-			case 'U':
-				use_user1 = false;
-				excl_user1 = true;
-				num = 0;
-				while( optarg[num] != '\0' ) {
-					user[num] = optarg[num];
-					num++;
-				}
-				user[num] = '\0';
-				break;
-			case 'i':
-				in_out = atoi(optarg);
-				if (in_out > 3 || in_out < 0 ) in_out = 0;
-				break;
-			case '9':
-				sp_reset = true;
-				break;
-			case 't':
-				tab_separate = true;
-				break;
-			case 'w':
-				width = atoi(optarg);
-				if (width < 6 ) width = 8;
-				if (width > 16) width = 16;
-				break;
-			case 's':
-				use_maxspeed = true;
-				break;
-			case 'l':
-				excl_linktype = true;
-				break;
-			case 'v':
-				disp = true;
-				break;
-			default:
-			;
+
+	options_description description("Options");
+	description.add_options()
+		("PAR,p", value<std::string>(), "Parameter file for speed adjustment")
+		("exclude,e", value<int>(), "Excludes when evaluation flag == arg (0 or 1)")
+		("max_mode,M", value<int>(), "Specify max mode to be displayed to arg")
+		("include-userflag,u", value<std::string>(), "User flag in arg is calculated")
+		("exclude-userflag,U", value<std::string>(), "User flag in arg is NOT calculated")
+		("in-out,i", value<std::string>(), "arg=0,1,2,3 means all, in-in, in-out, out-out")
+		("linklist,f", value<std::string>(), "Use link list file for calculation")
+		("tab,t", "Output separator is TAB")
+		("use-qv9,9", "Last speed = Vmax for QV=9")
+		("freespeed,s", "Use free speed")
+		("link-ignored,l", "-s parameter is ignored when link type is not 0");
+	variables_map vm;
+	store(parse_command_line(argc, argv, description), vm);
+	notify(vm);
+
+	if (vm.count("PAR")) {
+		std::string par_file = vm["PAR"].as<std::string>();
+		try {
+			s_par.Read(par_file.c_str());
+			for (int i = 0; i < 10; i++) {
+				if (s_par.sp_modify[i] == 0) sp_adj[i] = 1.0;
+				else sp_adj[i] = s_par.sp_modify[i];
 			}
 		}
+		catch (std::runtime_error& ) {
+			fprintf(stderr, "Cannot read %s.\n", par_file.c_str());
+		}
 	}
-
+	if (vm.count("exclude")) {
+		int n = vm["exclude"].as<int>();
+		use_eval = true;
+		if (n == 0) eval_flag = false;
+		else if (n == 1) eval_flag = true;
+		else use_eval = false;
+	}
+	if (vm.count("max_mode")) {
+		max_mode = vm["max_mode"].as<int>();
+		if (max_mode > 10) max_mode = 10;
+		if (max_mode <= 0) {
+			fprintf(stderr, "Wrong argument for -M.\n");
+			exit(1);
+		}
+	}
+	if (vm.count("include-userflag")) {
+		use_user1 = true;
+		excl_user1 = false;
+		user = vm["include-userflag"].as<std::string>();
+	}
+	if (vm.count("exclude-userflag")) {
+		use_user1 = false;
+		excl_user1 = true;
+		user = vm["exclude-userflag"].as<std::string>();
+	}
+	if (vm.count("in-out")) {
+		in_out = vm["in-out"].as<int>();
+		if (in_out > 3 || in_out < 0) in_out = 0;
+	}
+	if (vm.count("linklist")) {
+		std::string name = vm["linklist"].as<std::string>();
+		if (read_linkfile(name.c_str())) use_linklist = true;
+	}
+	if (vm.count("tab")) {
+		tab_separate = true;
+	}
+	if (vm.count("use-qv9")) {
+		sp_reset = true;
+	}
+	if (vm.count("freespeed")) {
+		use_maxspeed = true;
+	}
+	if (vm.count("link-ignored")) {
+		excl_linktype = true;
+	}
+	if (vm.count("disp")) {
+		disp = true;
+	}
+	if (vm.count("width")) {
+		width = vm["width"].as<int>();
+		if (width < 6) width = 8;
+		if (width > 16) width = 16;
+	}
 //初期化
 	if( use_maxspeed) read_free_speed();
 
@@ -226,13 +217,13 @@ int main(int argc, char* argv[])
 		if( use_eval)
 			printf("Excludes links with evaluation flag %d\n", eval_flag);
 		if( use_user1 )
-			printf("Calculate for user flag 1 = %s\n", user);
+			printf("Calculate for user flag 1 = %s\n", user.c_str());
 	}
     try {
         s_ire.Read(argv[1]);
     } catch (std::runtime_error& e) {
 		fprintf(stderr,"Cannot read file %s. \nException: %s ", argv[1], e.what() );
-		fprintf(stderr,"Message: %s\n", s_ire.msg);
+		fprintf(stderr,"Message: %s\n", s_ire.msg.c_str());
 		exit(1);
 	}
 
@@ -253,23 +244,19 @@ int main(int argc, char* argv[])
 		check = true;
 		if( use_user1 ) {
 			check = false;
-			p = user;
-			while( *p ) {
-				if( *p == link->aFlag1 ) {
+			for (size_t i = 0; i < user.length(); i++) {
+				if (user[i] == link->aFlag1) {
 					check = true;
 					break;
 				}
-				p++;
 			}
 		} else if( excl_user1 ) {
 			check = true;
-			p = user;
-			while( *p ) {
-				if( *p == link->aFlag1 ) {
+			for (size_t i = 0; i < user.length(); i++) {
+				if (user[i] == link->aFlag1) {
 					check = false;
 					break;
 				}
-				p++;
 			}
 		}
 		if( !check ) continue;

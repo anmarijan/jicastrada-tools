@@ -22,7 +22,7 @@ void conv_upper(char* str) {
 	}
 }
 //------------------------------------------------------------------------------
-char* get_ext(const char* fname, char* str) {
+char* get_ext(const char* fname, char* str, size_t n) {
 
 	const char* p;
 	const char* q;
@@ -35,15 +35,15 @@ char* get_ext(const char* fname, char* str) {
 	if( q == NULL ) {
 		str[0] = '\0';
 	} else {
-		strcpy_s(str, sizeof(str), q+1);
+		strcpy_s(str, n, q+1);
 	}
 	return str;
 }
 //------------------------------------------------------------------------------
-char* get_path(const char* fname, char* target) {
+char* get_path(const char* fname, char* target, size_t n) {
     int pos = 0;
     int i = 0;
-    strcpy_s(target, sizeof(target), fname);
+    strcpy_s(target, n, fname);
     while (target[i] != 0 ) {
         if( target[i] == '\\' || target[i] == '/' ) pos = i;
         i++;
@@ -54,9 +54,9 @@ char* get_path(const char* fname, char* target) {
 //------------------------------------------------------------------------------
 // change the extension
 //------------------------------------------------------------------------------
-void set_fname(const char* f_str, char* dst_str, const char* f_ext) {
+void set_fname(const char* f_str, char* dst_str, size_t n, const char* f_ext) {
 
-	int len, pos;
+    size_t len, pos;
 	len = strlen(f_str);
 	if (len < 3) return;
 	pos = len - 1;
@@ -64,62 +64,21 @@ void set_fname(const char* f_str, char* dst_str, const char* f_ext) {
 		if( f_str[pos] == '.' ) break;
 		pos--;
 	}
-	if( pos == 0 ) sprintf_s(dst_str, sizeof(dst_str), "%s.%s", f_str, f_ext);
+	if( pos == 0 ) sprintf_s(dst_str, n, "%s.%s", f_str, f_ext);
 	else {
-		strncpy_s(dst_str, sizeof(dst_str), f_str, pos + 1);
+		strncpy_s(dst_str, n, f_str, pos + 1);
 		dst_str[pos+1] = '\0';
-		strcat_s(dst_str,sizeof(dst_str),f_ext);
+		strcat_s(dst_str,n,f_ext);
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////
-char* getKey(char* key,const char* s1, const char* s2){
-	sprintf_s(key,sizeof(key),"%s#AND#%s",s1,s2);
+char* getKey(char* key,size_t n, const char* s1, const char* s2){
+	sprintf_s(key,n,"%s#AND#%s",s1,s2);
 	return key;
 }
-
-char* substring(char* dst, const char* buff,int s, int e){
-	strncpy_s(dst,sizeof(dst),&buff[s],e-s); dst[e-s] = '\0';
-	return dst;
-}
 //------------------------------------------------------------------------------
-// max: max size of the string
+//
 //------------------------------------------------------------------------------
-char* trim(char* str, int max){
-	int a = -1;
-	if( max <= 0 ) {
-    	str[0] = '\0';
-        return str;
-    }
-    int len = strlen(str)+1;
-    if( max > len ) max = len;
-
-	for(int i=0; i< max-1; i++){
-		if(str[i] == ' ') continue;
-		else {
-			a = i;
-			break;
-		}
-	}
-    if( a == -1 ) { // all spaces
-        for(int i=0; i < max; i++) str[i] = '\0';
-        return str;
-    }
-    int b = max;
-    for(int i=max-1; i > 0; i--) {	//max includes NULL
-        if( str[i-1] == ' ' ) continue;
-        else {
-            b = i;
-            break;
-        }
-    }
-	int c = 0;
-	for(int i=a; i < b; c++,i++){
-		str[c] = str[i];
-	}
-	while(c < max) str[c++] = '\0';
-	return str;
-}
-
 char* trim(char* str) {
 	int s , e;
 	int len, i;
@@ -150,7 +109,7 @@ int getbufInt(const char* buf, int p, int c){
 	assert( c < 20 && c > 0 && p >= 0);
 	strncpy_s(dst, sizeof(dst),&buf[p],c);
     dst[c] = '\0';
-    trim(dst, 20);
+    trim(dst);
 	n = strtol(dst, &endptr, 0);
 	if( *endptr != '\0' ) {
 		fprintf(stderr, "try to convert integer from [%s]\n", endptr);
@@ -171,7 +130,7 @@ float getbufFlt(const char* buf, int p, int c){
 	assert( c < 20 && c > 0 && p >= 0);
 	strncpy_s(dst, sizeof(dst),&buf[p],c);
     dst[c] = '\0';
-    trim(dst, 20);
+    trim(dst);
     f = (float)strtod(dst, &endptr);
     if( *endptr != '\0' ) {
 		sprintf_s(msg, sizeof(msg), "getbufFlt:%s", dst);
@@ -190,7 +149,7 @@ double getbufDbl(char* buf, int p, int c){
 	assert( c < 20 && c > 0 && p >= 0);
 	strncpy_s(dst, sizeof(dst),&buf[p],c);
     dst[c] = '\0';
-    trim(dst, 20);
+    trim(dst);
     f = strtod(dst, &endptr);
     if( *endptr != '\0' ) {
 		sprintf_s(msg, sizeof(msg), "getbufDbl:%s", dst);
@@ -236,18 +195,18 @@ int maxlinelen(FILE* fp, char* buffer, int size) {
     return maxlen;
 }
 
-char* float_print(char* buf, float x){
+char* float_print(char* buf, size_t n, float x){
 	char name[12];
 	memset(buf, '\0', 6);
 	memset(name, '\0', 12);
-	if( x < 0.00005 ) sprintf_s(buf,sizeof(buf), "    0");
+	if( x < 0.00005 ) sprintf_s(buf, n, "    0");
 	else if( x < 1 ) {
 		sprintf_s(name, sizeof(name), "%6.4f",x);
 		name[6] = '\0';
-		strcpy_s(buf, sizeof(buf), &name[1]);
+		strcpy_s(buf, n, &name[1]);
 	}
-	else if(x > 9999) sprintf_s(buf, sizeof(buf), " 9999");
-	else sprintf_s(buf, sizeof(buf), "%5.4g",x);
+	else if(x > 9999) sprintf_s(buf, n, " 9999");
+	else sprintf_s(buf, n, "%5.4g",x);
 
 	return buf;
 }
@@ -343,7 +302,7 @@ char* fixfloat(char* buff, double value, int width, int ndig) {
 //------------------------------------------------------------------------------
 // Read a configuration file 
 //------------------------------------------------------------------------------
-bool getconfig(const char* fname, char* key, char* dst) {
+bool getconfig(const char* fname, char* key, char* dst, size_t n) {
 	FILE* fp = NULL;
 	char buff[MAX_CONFIG_LENGTH];
 	char name[MAX_CONFIG_LENGTH];
@@ -365,17 +324,14 @@ bool getconfig(const char* fname, char* key, char* dst) {
 			p = strtok_s(buff, "=", &next_token);
 			if (p) {
 				strcpy_s(name, sizeof(name), p);
-				trim(name, MAX_CONFIG_LENGTH);
+				trim(name);
 				if (strcmp(name, key) == 0) {
 					p = strtok_s(NULL, "\0", &next_token);
 					if (p) {
-						strcpy_s(dst, sizeof(dst), p);
-						int length = strlen(dst);
-						trim(dst, length + 1);
+						strcpy_s(dst, n, p);
+						trim(dst);
 					}
 					else dst[0] = '\0';
-					//                if( length > 128 ) strcpy(dst,value);
-					//                else strncpy_s(dst, sizeof(dst), value, length);
 					fclose(fp);
 					return true;
 				}
@@ -461,32 +417,31 @@ char* csv_parser(char* input, char** array, int c, char SEP, char DIG) {
 //---------------------------------------------------------------------------
 // Extract a string inside double-quotations (for csv format)
 //---------------------------------------------------------------------------
-void dqconv(char* source, char* dest, int maxlen) {
-//	char* p;
-	int i = 0;
-	int s = -1;
-	int e = -1;
+void dqconv(char* dest, size_t n, char* source) {
+	size_t i = 0;
+	size_t s = std::string::npos;
+	size_t e = std::string::npos;
 
 	while( source[i] != '\0' ) {
-		if ( s == -1 ) {
+		if ( s == std::string::npos) {
 			if( source[i] != '\"' && source[i] != ' ' && source[i] != '\t') break;
 			else if ( source[i] == '\"' ) {
 				s = i;
 			}
-		} else if ( s > -1 && source[i] == '\"' ) {
+		} else if ( source[i] == '\"' ) {
 			e = i;
 		}
 		i++;
 	}
-	if( s > -1 && e > -1 ) {
-		for(int j = e + 1; j < i; j++ ) {
+	if( s != std::string::npos && e != std::string::npos ) {
+		
+		for(size_t j = e + 1; j < i; j++ ) {
 			if( source[j] != ' ' && source[j] != '\t' ) {
-				strncpy_s(dest, sizeof(dest), source, maxlen);
+				strcpy_s(dest, n, source);
 				return;
 			}
-		}
-		if( e - s -1 > maxlen) e = s + 1 + maxlen;
-		for(int j = s+1; j < e; j++) dest[j-s-1] = source[j];
+		}	
+		for(size_t j = s+1; j < e; j++) dest[j-s-1] = source[j];
 		dest[e-s-1] = '\0';
-	} else strncpy_s(dest, sizeof(dest), source, maxlen);
+	} else strcpy_s(dest, n, source);
 }

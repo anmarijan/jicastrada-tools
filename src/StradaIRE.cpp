@@ -15,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <boost/tokenizer.hpp>
+#include <boost/algorithm/string/trim.hpp>
 /*-------------------------------------------------------------------------*/
 #include "StradaCmn.h"
 #include "StradaIRE.h"
@@ -150,7 +151,7 @@ float OnewayResult::veh_vol(float pcu[], int t) {
 //---------------------------------------------------------------------------
 //
 //---------------------------------------------------------------------------
-int OnewayResult::Read(char* buf){
+int OnewayResult::Read(const char* buf){
 
 	try {
 		avSp = getbufFlt(buf, 0, 5);
@@ -213,13 +214,13 @@ void OnewayResult::Write(FILE* fp){
 	fixfloat(buff+5 , ltSp, 5);
 	fixfloat(buff+10, VCR,  5);
 	fixfloat(buff+15, Vol,  7);
-	for(int i=0; i < 10; i++){
+	for(size_t i=0; i < 10; i++){
 		fixfloat(buff+22+21*i, inVol[i], 7);
 		fixfloat(buff+29+21*i, thVol[i], 7);
 		fixfloat(buff+36+21*i, btVol[i], 7);
 	}
 	fixfloat(buff+232, ATL, 6);
-	for(int i=0; i < 6; i++) fixfloat(buff+238+7*i, trVol[i], 7);
+	for(size_t i=0; i < 6; i++) fixfloat(buff+238+7*i, trVol[i], 7);
 
 	fprintf(fp, "%s", buff);
 //	if( VCR > 99.99 ) VCR = 99.99;
@@ -250,57 +251,55 @@ IRELinkV2::IRELinkV2(SLinkV2& s) : SLinkV2(s) {
 //! Read link data
 //------------------------------------------------------------------------------
 int IRELinkV2::Read(const char* buf){
-
+	std::string line = buf;
+	std::string str;
 	try {
-        strncpy_s(name, sizeof(name),&buf[0], 10);    trim(name,11);  name[10]  = '\0';
-        strncpy_s(sNode, sizeof(sNode), &buf[10], 10);  trim(sNode,11); sNode[10] = '\0';
-        strncpy_s(eNode, sizeof(eNode), &buf[20], 10);  trim(eNode,11); eNode[10] = '\0';
+		str = line.substr(0, 10); boost::trim(str); strcpy_s(name, 11, str.c_str());
+		str = line.substr(10, 10); boost::trim(str); strcpy_s(sNode, 11, str.c_str());
+		str = line.substr(20, 10); boost::trim(str); strcpy_s(eNode, 11, str.c_str());
 
-        length = getbufFlt(buf, 30, 7);
-        Vmax   = getbufFlt(buf, 37, 5);
-        Capa   = getbufFlt(buf, 42, 8);
-        QV	   = getbufInt(buf, 50, 2);
-        for(int i=0; i < 10; i++) ways[i] = buf[52+i] ;
+		length = std::stof(line.substr(30, 7));
+        Vmax   = std::stof(line.substr(37, 5));
+        Capa   = std::stof(line.substr(42, 8));
+        QV	   = std::stoi(line.substr(50, 2));
+        for(size_t i=0; i < 10; i++) ways[i] = line[52+i] ;
 
-        char str[300];
-        memset(str, 0, 300);
-        strncpy_s(str, sizeof(str),&buf[62], 280);
-        if( result[0].Read(str) == -1) throw std::runtime_error("IRE");
+		str = line.substr(62, 280);
+        if( result[0].Read(str.c_str()) == -1) throw std::runtime_error("IRE");
 
-        memset(str, 0, 300);
-        strncpy_s(str, sizeof(str), &buf[342], 280);
-        if( result[1].Read(str) == -1) throw std::runtime_error("IRE");
+		str = line.substr(342, 280);
+		if( result[1].Read(str.c_str()) == -1) throw std::runtime_error("IRE");
 
-        linktype = buf[622];
-        if(buf[623] == '0') evaluation = true; else evaluation = false;
-        display = buf[624];
-        aFlag1	= buf[625];
-        nFlag2	= getbufInt(buf, 626, 2);
-        nFlag3	= getbufInt(buf, 628, 2);
-        aFlag4[0]  = buf[630];
-        aFlag4[1]  = buf[631];
-        aFlag5[0]  = buf[632];
-        aFlag5[1]  = buf[633];
-        aFlag5[2]  = buf[634];
+        linktype = line[622];
+        if(line[623] == '0') evaluation = true; else evaluation = false;
+        display = line[624];
+        aFlag1	= line[625];
+		nFlag2 = std::stoi(line.substr(626, 2));
+		nFlag3 = std::stoi(line.substr(628, 2));
+        aFlag4[0]  = line[630];
+        aFlag4[1]  = line[631];
+        aFlag5[0]  = line[632];
+        aFlag5[1]  = line[633];
+        aFlag5[2]  = line[634];
 
-        iX = getbufFlt(buf,645,10);
-        iY = getbufFlt(buf,655,10);
-        jX = getbufFlt(buf,665,10);
-        jY = getbufFlt(buf,675,10);
+		iX = std::stof(line.substr(645, 10));
+		iY = std::stof(line.substr(655, 10));
+		jX = std::stof(line.substr(665, 10));
+		jY = std::stof(line.substr(675, 10));
 
-        dummy = getbufInt(buf, 685, 5);
+        dummy = std::stoi(line.substr(685, 5));
 
         if( dummy > 0 ) {
-			dX[0] = getbufFlt(buf, 690, 10);
-			dY[0] = getbufFlt(buf, 700, 10);
+			dX[0] = std::stof(line.substr(690, 10));
+			dY[0] = std::stof(line.substr(700, 10));
 
 			if( dummy > 1 ) {
-				dX[1] = getbufFlt(buf, 710, 10);
-				dY[1] = getbufFlt(buf, 720, 10);
+				dX[1] = std::stof(line.substr(710, 10)); 
+				dY[1] = std::stof(line.substr(720, 10)); 
 
 				if( dummy > 2 ) {
-					dX[2] = getbufFlt( buf, 730, 10);
-					dY[2] = getbufFlt( buf, 740, 10);
+					dX[2] = std::stof(line.substr(730, 10)); 
+					dY[2] = std::stof(line.substr(740, 10)); 
 				}
             }
 
@@ -326,10 +325,9 @@ void IRELinkV2::ReadCSV(const char* buf){
 	if ( counter < 109 ) throw  std::runtime_error("CSV in IRELink");
 	char* ptr;
 	const char* sep = ",";
-	kip = strtok_s(&vec[0], sep, &ptr); dqconv(kip, name, 10); trim(name,11);
-
-	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, sNode, 10); trim(name,11);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, eNode, 10); trim(name,11);
+	kip = strtok_s(&vec[0], sep, &ptr); dqconv(name, 11, kip); trim(name);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(sNode, 11, kip); trim(name);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(eNode, 11, kip); trim(name);
     kip = strtok_s(NULL, sep, &ptr); length = (float)atof(kip);
     kip = strtok_s(NULL, sep, &ptr); Vmax   = (float)atof(kip);
     kip = strtok_s(NULL, sep, &ptr); Capa   = (float)atof(kip);
@@ -346,12 +344,12 @@ void IRELinkV2::ReadCSV(const char* buf){
 	kip = strtok_s(NULL, sep, &ptr);
     if( *kip == '0') evaluation = true; else evaluation = false;
 	kip = strtok_s(NULL, sep, &ptr); display = *kip;
-	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, aFlag4, 1); aFlag1 = aFlag4[0];
+	kip = strtok_s(NULL, sep, &ptr); dqconv(aFlag4, 2, kip); aFlag1 = aFlag4[0];
 	kip = strtok_s(NULL, sep, &ptr); nFlag2 = atoi(kip);
 	kip = strtok_s(NULL, sep, &ptr); nFlag3 = atoi(kip);
 //	printf("%d %d", nFlag2, nFlag3);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, aFlag4, 2);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(kip, aFlag5, 3);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(aFlag4, 3, kip);
+	kip = strtok_s(NULL, sep, &ptr); dqconv(aFlag5, 4, kip);
 
 	kip = strtok_s(NULL, sep, &ptr);	//dummy
 
@@ -601,10 +599,10 @@ void StradaIRE::Read(const char* fname){
 				nNode = std::stoi(buff.substr(5, 5));
 				nMode = std::stoi(buff.substr(10, 5));
 
-				for (int i = 0; i < 5; i++) Ranks[i] = std::stof(buff.substr(15 + 5 * i, 5));
+				for (size_t i = 0; i < 5; i++) Ranks[i] = std::stof(buff.substr(15 + 5 * i, 5));
 				coordinate = std::stoi(buff.substr(40, 5));
 
-				for (int i = 0; i < 10; i++) {
+				for (size_t i = 0; i < 10; i++) {
 					APC[i] = std::stof(buff.substr(45 + i * 10, 5));
 					PCU[i] = std::stof(buff.substr(50 + i * 10, 5)); 
 				}
@@ -662,7 +660,7 @@ void StradaIRE::Write(FILE* fp){
 		node_table.insert(links[i]->sNode);
 		node_table.insert(links[i]->eNode);
 	}
-	nNode = node_table.size();
+	nNode = static_cast<int>(node_table.size());
 
 	fprintf(fp,"IRE2 ");
 	//print_header(fp,"IRE2");
@@ -714,19 +712,23 @@ void StradaIRE::Write(char* fname) {
 void StradaIRE::WriteMInfo(const char* fname, double dai, int vtype) {
     FILE* fp_mif = NULL;
     FILE* fp_mid = NULL;
-	char file_name[255];
+	std::string file_name;
     double width;
-
-    set_fname(fname, file_name, "mif" );
+	std::string fullname = fname;
+	std::string bodyname;
+	size_t pos = fullname.find_last_of(".");
+	if (pos > 0) bodyname = fullname.substr(0, pos);
+	else bodyname = fullname;
     float xo, yo, xm, ym;
     xo = FLT_MAX ;
     yo = FLT_MAX ;
     xm = 0;
     ym = 0;
-	errno_t error = fopen_s(&fp_mif, file_name, "wt");
+	file_name = bodyname + ".mif";
+	errno_t error = fopen_s(&fp_mif, file_name.c_str(), "wt");
 	if (error == 0 && fp_mif != NULL) {
-        set_fname(fname, file_name, "mid" );
-		error = fopen_s(&fp_mid, file_name, "wt");
+        file_name = bodyname + ".mid";
+		error = fopen_s(&fp_mid, file_name.c_str(), "wt");
         if(error == 0 && fp_mid != NULL) {
               conv(1,0);
 

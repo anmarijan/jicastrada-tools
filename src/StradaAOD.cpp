@@ -8,7 +8,9 @@
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <boost/tokenizer.hpp>
+#include <boost/algorithm/string/trim.hpp>
 #define AOD_BAD_ALLOC 1
 /*----------------------------------------------------------------------------*/
 #include "StradaAOD.h"
@@ -76,11 +78,13 @@ StradaAOD::StradaAOD(const StradaAOD & aod){
 	}
 }
 // 
-void StradaAOD::allocTable(int nTable, int nZone){
-	assert( nTable > 0 && nZone > 0);
+void StradaAOD::allocTable(int n_tables, int n_zones){
+	assert( n_tables > 0 && n_zones > 0);
 	clear();
 	try {
-		tables.resize(nTable);
+		tables.resize(n_tables);
+		nTable = n_tables;
+		nZone = n_zones;
 	} catch( const std::bad_alloc&  ) {
 		throw AOD_BAD_ALLOC;
 	}
@@ -90,6 +94,7 @@ void StradaAOD::allocTable(int nTable, int nZone){
 		}
 	} catch( const std::bad_alloc& ) {
 		tables.clear();
+		nTable = nZone = 0;
 		throw AOD_BAD_ALLOC;
 	}
 }
@@ -213,8 +218,6 @@ void StradaAOD::Read(const char* fname){
 	}
 	char* p;
 	char dst[100];
-	int length;
-	int name_len;
 
 	csv = false;
 
@@ -282,16 +285,15 @@ void StradaAOD::Read(const char* fname){
 
 			allocTable(nTable,nZone);
 			//table name
-			length = strlen(p);
+			size_t length = strlen(p);
 			length -= 15;	//Exclude the table information
-			name_len = ( version == 1 ) ?  20 : 10;
+			size_t name_len = ( version == 1 ) ?  20 : 10;
 			length /= name_len;
-			length = (length < nTable) ? length : nTable;
-			for(int i=0; i < length; i++){
-				strncpy_s(dst,sizeof(dst),&p[15+name_len*i],name_len);
-				dst[name_len] = '\0';
-				trim(dst,name_len);
-				tables[i].name = dst;
+			length = (length < static_cast<size_t>(nTable)) ? length : nTable;
+			for(size_t i=0; i < length; i++){
+				std::string str = buff.substr(15 + name_len * i, name_len);
+				boost::trim(str);
+				tables[i].name = str;
 			}
 		}
 		//From line 3 
@@ -367,7 +369,8 @@ void StradaAOD::Read(const char* fname){
 			for(int t=0; t < nTable; t++) {
 				for(int i=0; i < nZone; i++) {
 					if( std::getline(ifs, buff).fail() ) throw std::runtime_error("read");
-					if( buff.length() < static_cast<unsigned int>(8 * nZone) )  throw std::runtime_error("read");
+					int w = nZone * 8;
+					if( buff.length() < static_cast<size_t>(w) )  throw std::runtime_error("read");
 					for(int j=0; j < nZone; j++ ) {
 						std::string sub = buff.substr(8*j,8);
 						setOD(t, i , j, atof(sub.c_str()));
@@ -380,6 +383,7 @@ void StradaAOD::Read(const char* fname){
 		clear();
 		fprintf(stderr, "AOD Format Error: %s\n", e.what());
 	}
+	printf("Zone=%d, Tables=%d, type=%d\n", nZone, nTable, type);
 }
 ////////////////////////////////////////////////////////////////////////////////
 // Ver2.0 format (8 cols x n zones)

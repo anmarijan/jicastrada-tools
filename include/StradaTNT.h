@@ -4,6 +4,7 @@
 //---------------------------------------------------------------------------
 #include <list>
 #include <vector>
+#include <string>
 #include "StradaCmn.h"
 //---------------------------------------------------------------------------
 /////////////////////////////////////////////////////////////////////////////
@@ -29,7 +30,7 @@ public:
 	std::list<TRNNode> nodes;
 public:
     TRNLine();
-    bool ReadCSV(char* buff);
+    bool ReadCSV(const std::string& str);
     void Write(FILE* fp);
 };
 /////////////////////////////////////////////////////////////////////////////
@@ -42,9 +43,7 @@ public:
 	std::vector<TRNLine> lines;
 public:
 	StradaTNT();
-	int Read(FILE *fp);
     void Read(const char* file_name);
-    void ReadCSV(FILE* fp);
 	void Write(char* fname);
 	void Write(FILE* fp);
     TRNLine* getLine(int i);

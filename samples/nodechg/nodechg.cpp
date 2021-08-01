@@ -6,6 +6,8 @@ INTまたはPARファイルの名前を一括変更
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <string>
+#include <algorithm> 
 #include <stdexcept>
 #include "tool.h"
 #include "StradaINT.h"
@@ -39,17 +41,17 @@ int main(int argc, char* argv[])
 	int readtype = 0;
 
 	char buff[2048];
-	char ext[256];
 	char src[12];
 	char dst[12];
 
     if( argc != 4 ) usage();
+	std::string arg = argv[1];
+	size_t pos = arg.find_last_of(".");
+	std::string ext = arg.substr(pos+1);
+	std::transform(ext.cbegin(),ext.cend(),ext.begin(), toupper);
 
-	get_ext(argv[1], ext);
-	conv_upper(ext);
-
-	if( strncmp(ext, "INT", 3) == 0 ) readtype = 1;
-	else if( strncmp(ext, "PAR", 3) == 0 ) readtype = 2;
+	if( ext == "INT" ) readtype = 1;
+	else if( ext == "PAR" ) readtype = 2;
 	else usage();
 
     try {

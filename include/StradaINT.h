@@ -25,17 +25,10 @@ public:
 	bool checkway(int m,int j);	//i=0: sNode->eNode, i=1: eNode->sNode
 	int way();  // A->B = 1, B->A = -1, both = 0
 	void set_attr(INTLinkV2& link);
-	/*
-	void setRoute(bool chk) {bRouteInf = chk;};
-	void setODDetail(bool chk) {bLinkOD = chk;};
-
-	bool getRoute() { return bRouteInf ;}
-	bool getODDetail() { return bLinkOD; }
-	*/
 	void get_boundary(double &x1, double &y1, double &x2, double &y2);
 
-	bool Read(char* buff);
-	bool ReadAsV1(char* buf);	//Ver1.0 format
+	bool Read(const char* buff, size_t &pos);
+	bool ReadAsV1(const char* buf);	//Ver1.0 format
 	bool ReadCSV(char* buff);
     bool ReadAsV4(char* buff);
 	void Write(FILE* fp);

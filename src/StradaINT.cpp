@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/trim.hpp>
+
 //---------------------------------------------------------------------------
 #include "tool.h"
 #include "StradaINT.h"
@@ -84,56 +86,65 @@ INTLinkV2& INTLinkV2::operator=(const INTLinkV2& obj) {
 ////////////////////////////////////////////////////////////////////////////////
 //	Read 1 line (Ver2)
 ////////////////////////////////////////////////////////////////////////////////
-bool INTLinkV2::Read(char* link_str){
+bool INTLinkV2::Read(const char* link_str, size_t &pos){
 	std::string buff = link_str;
 	std::string str;
-	char temp[20];
-	str = buff.substr(0, 10); boost::trim(str); strcpy_s(name, sizeof(name), str.c_str());
-	str = buff.substr(10, 10); boost::trim(str); strcpy_s(sNode, sizeof(sNode), str.c_str());
-	str = buff.substr(20, 10); boost::trim(str); strcpy_s(eNode, sizeof(eNode), str.c_str());
-	if( name[0] == '\0' || sNode[0] == '\0' || eNode[0] == '\0') return false;
-	length = std::stof(buff.substr(30, 7));
-	Vmax = std::stof(buff.substr(37, 5));
-	Capa = std::stof(buff.substr(42, 8));
-	QV = std::stoi(buff.substr(50, 3));
+	try {
+		str = buff.substr(0, 10); boost::trim(str); strcpy_s(name, sizeof(name), str.c_str());
+		pos = 10;  str = buff.substr(10, 10); boost::trim(str); strcpy_s(sNode, sizeof(sNode), str.c_str());
+		pos = 20;  str = buff.substr(20, 10); boost::trim(str); strcpy_s(eNode, sizeof(eNode), str.c_str());
+		if (name[0] == '\0' || sNode[0] == '\0' || eNode[0] == '\0') return false;
+		pos = 30; length = std::stof(buff.substr(30, 7));
+		pos = 37; Vmax = std::stof(buff.substr(37, 5));
+		pos = 42; Capa = std::stof(buff.substr(42, 8));
+		pos = 50;  QV = std::stoi(buff.substr(50, 3));
 
-	char c;
-	memset(temp, 0, 20);
-	for(int i=0; i < 10; i++ ) {
-		str = buff.substr(53 + i * 5, 5);
-		fare[i] = std::stof(buff);
-		c = buff[103+i];
-		if( c != '1' && c != '2' && c != '3') c = '0';
-		ways[i] = c;
-	}
-	linktype = buff[113];
-	if( buff[114] == '1' ) evaluation = false;
+		char c;
+		for (size_t i = 0; i < 10; i++) {
+			pos = 53 + i * 5;
+			str = buff.substr(pos, 5);
+			fare[i] = std::stof(str);
+			pos = 103 + i;
+			c = buff[pos];
+			if (c != '1' && c != '2' && c != '3') c = '0';
+			ways[i] = c;
+		}
+		pos = 113;  linktype = buff[113];
+		pos = 114;  if (buff[114] == '1') evaluation = false;
 		else evaluation = true;
 
-	display = buff[115];
-	aFlag1	= buff[116];
-	nFlag2 = std::stoi(str = buff.substr(117, 2));
-	nFlag3 = std::stoi(str = buff.substr(119, 2));
-	aFlag4[0] = buff[121]; aFlag4[1] = buff[122];
-	aFlag5[0] = buff[123]; aFlag5[1] = buff[124]; aFlag5[2] = buff[125];
-	color = buff[126];
-	iX = std::stof(buff.substr(140, 10));
-	iY = std::stof(buff.substr(150, 10));
-	jX = std::stof(buff.substr(160, 10));
-	jY = std::stof(buff.substr(170, 10));
-	dummy = std::stoi(buff.substr(180,5));
-    if( dummy < 0 || dummy > 3 ) return false;
-	if( dummy > 0 ){
-		dX[0] = std::stof(buff.substr(185, 10));
-		dY[0] = std::stof(buff.substr(195, 10));
-		if(dummy > 1) {
-		dX[1] = std::stof(buff.substr(205, 10)); 
-		dY[1] = std::stof(buff.substr(215, 10));
-			if(dummy > 2 ) {
-				dX[2] = std::stof(buff.substr(225, 10));
-				dY[2] = std::stof(buff.substr(235, 10));
+		pos = 115; display = buff[115];
+		pos = 116; aFlag1 = buff[116];
+		pos = 117; nFlag2 = std::stoi(str = buff.substr(117, 2));
+		pos = 119; nFlag3 = std::stoi(str = buff.substr(119, 2));
+		pos = 121;
+		aFlag4[0] = buff[pos++]; aFlag4[1] = buff[pos++];
+		aFlag5[0] = buff[pos++]; aFlag5[1] = buff[pos++]; aFlag5[2] = buff[pos++];
+		color = buff[pos];
+		pos = 140;  iX = std::stof(buff.substr(140, 10));
+		pos = 150;  iY = std::stof(buff.substr(150, 10));
+		pos = 160;  jX = std::stof(buff.substr(160, 10));
+		pos = 170;  jY = std::stof(buff.substr(170, 10));
+		pos = 180;  dummy = std::stoi(buff.substr(180, 5));
+		if (dummy < 0 || dummy > 3) return false;
+		if (dummy > 0) {
+			pos = 185;  dX[0] = std::stof(buff.substr(185, 10));
+			pos = 195;  dY[0] = std::stof(buff.substr(195, 10));
+			if (dummy > 1) {
+				pos = 205;  dX[1] = std::stof(buff.substr(205, 10));
+				pos = 215;  dY[1] = std::stof(buff.substr(215, 10));
+				if (dummy > 2) {
+					pos = 225;  dX[2] = std::stof(buff.substr(225, 10));
+					pos = 235;  dY[2] = std::stof(buff.substr(235, 10));
+				}
 			}
 		}
+	}
+	catch (std::invalid_argument&) {
+		return false;
+	}
+	catch (std::out_of_range&) {
+		return false;
 	}
 	return true;
 }
@@ -245,36 +256,43 @@ bool INTLinkV2::ReadAsV4(char* buf) {
 ////////////////////////////////////////////////////////////////////////////////
 //	Read a line (Ver1)
 ////////////////////////////////////////////////////////////////////////////////
-bool INTLinkV2::ReadAsV1(char* buf){
-
-	substring(name ,buf, 0, 5);	trim(name ,6);
-	substring(sNode,buf, 5,10);	trim(sNode,6);
-	substring(eNode,buf,10,15);	trim(eNode,6);
+bool INTLinkV2::ReadAsV1(const char* buf){
+	std::string line = buf;
+	std::string str = line.substr(0, 5);  boost::trim(str); strcpy_s(name, 5, str.c_str());
+	str = line.substr(5, 5);  boost::trim(str); strcpy_s(sNode, 5, str.c_str());
+	str = line.substr(10,5);  boost::trim(str); strcpy_s(eNode, 5, str.c_str());
 ////////////////
-	length = getbufFlt(buf,15,5); //if(errno==ERANGE) return false;
-	Vmax = getbufFlt(buf,20,5);   //if(errno==ERANGE) return false;
-	Capa = getbufFlt(buf,25,8);   // Capa > 0
-	QV	 = getbufInt(buf,33,2);
-	for(int i = 0; i < 5 ; i++ ) {
-		fare[i] = getbufFlt(buf,35 + i * 5, 5);
-//		if(errno==ERANGE) return false;
-	}
-	char c;
-	for(int i=0; i < 5; i++) {
-		c = buf[60+i];
-		if( c != '1' && c != '2' && c != '3') c = '0';
-		ways[i] = c;
-	}
+	try {
+		length = std::stof(line.substr(15, 5));
+		Vmax = std::stof(line.substr(20, 5));
+		Capa = std::stof(line.substr(25, 8));
+		QV = std::stoi(line.substr(33, 2));
+		for (size_t i = 0; i < 5; i++) {
+			fare[i] = std::stof(line.substr( 35 + i * 5, 5));
+		}
+		char c;
+		for (int i = 0; i < 5; i++) {
+			c = line[60 + i];
+			if (c != '1' && c != '2' && c != '3') c = '0';
+			ways[i] = c;
+		}
 
-	linktype  = buf[65];
-	if( buf[66] == '1' ) evaluation = false; else evaluation = true;
-	display = buf[67];
-	aFlag1	= buf[68];
-	color = buf[69];
-	iX	  = getbufFlt(buf,70, 5);
-	iY	  = getbufFlt(buf,75, 5);
-	jX	  = getbufFlt(buf,80, 5);
-	jY	  = getbufFlt(buf,85, 5);
+		linktype = line[65];
+		if (line[66] == '1') evaluation = false; else evaluation = true;
+		display = line[67];
+		aFlag1 = line[68];
+		color = line[69];
+		iX = std::stof(line.substr(70, 5));
+		iY = std::stof(line.substr(75, 5));
+		jX = std::stof(line.substr(80, 5));
+		jY = std::stof(line.substr(85, 5));
+	}
+	catch (std::invalid_argument&) {
+		return(false);
+	}
+	catch (std::out_of_range&) {
+		return(false);
+	}
 	return(true);
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -411,7 +429,6 @@ bool StradaINT::Read(FILE* fp)
 
 	int nrlink;
 	int nrnode;
-	int c;
 
 	if( fgets(buff,INT_BUF,fp) == NULL ) {
 		errmsg = "INT2 cannot read 1st line of buffer";
@@ -443,7 +460,7 @@ bool StradaINT::Read(FILE* fp)
 	}
 
 	try {
-		c = 0;
+		int c = 0;
 		if( csv ) {
 			for(int i = 0; buff[i] != '\0'; i++) {
 				if( buff[i] == ',' ) c++;
@@ -466,57 +483,45 @@ bool StradaINT::Read(FILE* fp)
 		errmsg = "INT2 LINK=" + std::to_string(nrlink) + " NODE=" + std::to_string(nrnode) + " COORDINATE=" + std::to_string(coordinate);
 		return false;
 	}
-	//count the lines
-	c = 0;
-	while( fgets(buff, INT_BUF, fp) != NULL ){
-		c++;
-	}
-	if( c == 0 ) {
-		errmsg = "INT2 There is no link field";
-		return false;
-	}
-	for(int i=0; i < c; i++) {
-		links.push_back(new INTLinkV2());
-	}
-
-//	AList link_list;
-//	ListIterator iter;
 	set<string> node_table;
 	set<string> link_table;
-
 	rewind(fp);
 	fgets(buff, INT_BUF, fp);
 	fgets(buff, INT_BUF, fp);
 	bool check = true;
+	int line_no = 2;
+	size_t pos = 0;
 	while( fgets(buff, INT_BUF, fp) != NULL ){
+		line_no++;
 		LinkPtr link = new INTLinkV2();
 		if( version == 2 ) {
 			if( csv ) {
 				if( link->ReadCSV(buff) == false ) {
-					errmsg =  "INT2 Link format incorrect";
+					errmsg =  "INT2 Error at line " + std::to_string(line_no);
 					check = false;
 					break;
 				}
-			} else if( link->Read(buff) == false ) {
-				errmsg =  "INT2 Link format incorrect";
+			} else if( link->Read(buff, pos) == false ) {
+				errmsg = "INT2 Error at line " + std::to_string(line_no) + "," + std::to_string(pos);
 				check = false;
 				break;
 			}
 		}
 		else if ( version == 4 ) {
 			if( link->ReadAsV4(buff) == false ) {
-				errmsg = "INT4 Link format incorrect";
+				errmsg = "INT4 Error at line " + std::to_string(line_no);
 				check = false;
 				break;
 			}
 		} else {
 			if( link->ReadAsV1(buff) == false ) {
-				errmsg =  "INT2 Link format ver 1 incorrect";
+				errmsg = "INT Error at line " + std::to_string(line_no);
 				check = false;
 				break;
 			}
 		}
 		links.push_back(link);
+		
 		if( link_table.find(link->name) != link_table.end()) {
 			std::string lname = link->name;
 			errmsg = "INT2 Link name duplication " + lname;
@@ -527,12 +532,11 @@ bool StradaINT::Read(FILE* fp)
 		node_table.insert(link->sNode);
 		node_table.insert(link->eNode);
 	}
-//    printf("%d %d\n", a, c);
 	if( check == false) {
 		links.clear();
 		return false;
 	}
-	nLink = c;
+	nLink = links.size();
 	//Remove the link whose name of start and end nodes is the same
 	bool b_found_same_node = false;
 	std::list<LinkPtr>::iterator it = links.begin();

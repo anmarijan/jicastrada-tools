@@ -37,7 +37,7 @@ public:
 	StradaAOD();
 	StradaAOD(const StradaAOD &aod);
 	StradaAOD(int nTable, int nZone);
-	void allocTable(int nTable,int nZone);
+	void allocTable(int n_tables,int n_zones);
 	void Read(const char* fname);
 	void Write(FILE* fp);
 	void Write(const char* fname);

@@ -42,8 +42,8 @@ int main(int argc, char* argv[])
     {
         while( fgets(buf, 2048, fp) != NULL ) {
             sscanf(buf,"%s%s\n", command, value );
-            trim(command, 100);
-            trim(value, 100);
+            trim(command);
+            trim(value);
             slen = strlen(command);
             if( slen == 5 && strncmp(command, "tval", 4) == 0 ) {
                 ch = command[4];

@@ -20,7 +20,7 @@ TermPenalty::TermPenalty() {
 
 int TermPenalty::Read(const char* str) {
 	char temp[6];
-	int len = strlen(str);
+	int len = static_cast<int>(strlen(str));
 	if ( len < 40 ) return -1;
 	strncpy_s(node, sizeof(node), str, 10);
 	strncpy_s(fline, sizeof(fline), str+10, 10);
@@ -78,6 +78,7 @@ int StradaTPA::Read(FILE* fp) {
 
 	char buf[200];
     char name[12];
+	int idx;
     int line_no = 0;
     int nIterator;
 	if(fgets(buf,100,fp)==NULL) return (-1);
@@ -101,7 +102,7 @@ int StradaTPA::Read(FILE* fp) {
         if(fgets(buf,100,fp)==NULL) return (-3);
         line_no++;
         buf[strlen(buf)-1]='\0';
-        nIterator = (strlen(buf) - 56)/3;
+        nIterator = (static_cast<int>(strlen(buf)) - 56)/3;
 
         if( strlen(buf) < 59 ) return (-3);
         line_no++;
@@ -157,8 +158,8 @@ int StradaTPA::Read(FILE* fp) {
 
             for(int k=0;k<10;k++){
                 strncpy_s(name, sizeof(name), &buf[10*k], 10);
-                trim(name,11);
-                centroids[10*j+k] = name;
+				trim(name); idx = 10 * j + k;
+                centroids[idx] = name;
             }
         }
         if(n!=0){
@@ -167,8 +168,8 @@ int StradaTPA::Read(FILE* fp) {
 
             for(int j = 0; j < n; j++){
                 strncpy_s(name, sizeof(name), &buf[10*j], 10);
-                trim(name,11);
-                centroids[10*m+j] = name;
+				trim(name); idx = 10 * m + j;
+                centroids[idx] = name;
             }
         }
 // Turn penalty
@@ -300,7 +301,7 @@ void StradaMode::setMode(StradaMode* sm){
 ////////////////////////////////////////////////////////////////////////////////
 int StradaTPA::pack_data(char* buf, std::vector<std::string> &target){
 	//assert( target == NULL );
-	int len = strlen(buf);
+	int len = static_cast<int>(strlen(buf));
     char temp[12];
     if( len > 0 ) {
     	buf[len-1] = '\0';
@@ -316,15 +317,11 @@ int StradaTPA::pack_data(char* buf, std::vector<std::string> &target){
 
     if( ret == 0 ) return 0 ;
 
-//	target = new char*[ret];
     target.resize(ret);
 
 	for(int i=0; i< ret ; i++){
-//		target[i] = new char[11];
-
 		for(int j=0; j < 10; j++){
             temp[j] = buf[10*i+j];
-//			target[i][j] = buf[5*i+j];
 		}
         temp[10] = '\0';
 		trim(temp);

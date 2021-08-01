@@ -1,10 +1,10 @@
 CC = g++
-OBJS = irecutter.o stgetopt.o
+OBJS = irecutter.o
 PROGRAM = irecutter.exe
 
 DEST = ../../bin/
 CFLAGS  = -std=c++1y -Wall -I../../include/
-LFLAGS  = -static -L../../lib -lstradatool
+LFLAGS  = -static -L../../lib -lstradatool -lboost_program_options-mt
 .cpp.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 

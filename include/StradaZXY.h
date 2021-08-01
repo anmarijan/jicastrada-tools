@@ -48,7 +48,7 @@ public:
 	void circulate();
 	void clear();
 	void calc_boundary();
-	void WriteMInfo(char* fname);
+	void WriteMInfo(const char* fname);
     void WriteMInfo(char* fname, StradaGAD& gad);
 };
 

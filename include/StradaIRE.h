@@ -30,7 +30,7 @@ public:
 	float pass_vol(float pcu[], float apc[], int t = 0);
 	float veh_vol(float pcu[], int = 0);
 
-	int Read(char* str);
+	int Read(const char* str);
 	int ReadCSV(char* next_token);
 	void Write(FILE* fp);
 	void WriteCSV(FILE* fp);

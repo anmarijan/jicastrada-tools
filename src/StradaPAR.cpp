@@ -7,6 +7,7 @@
 #include <set>
 #include <string>
 #include <fstream>
+#include <boost/algorithm/string/trim.hpp>
 //---------------------------------------------------------------------------
 #include "StradaPAR.h"
 #include "tool.h"
@@ -176,16 +177,18 @@ void StradaPAR::write_od(FILE* fp){
 	int m = nZone % 10;
 	for(int i=0; i < n; i++){
 		for(int j=0; j < 10; j++){
-			fprintf(fp, "%-10s", centroids[10*i+j].name);
-			if(centroids[10*i+j].flag) fprintf(fp, "* ");
+			int idx = 10 * i + j;
+			fprintf(fp, "%-10s", centroids[idx].name);
+			if(centroids[idx].flag) fprintf(fp, "* ");
 			else fprintf(fp, "  ");
 		}
 		fprintf(fp, "\n" );
 	}
 	if( m > 0 ) {
 		for(int i=0; i < m; i++){
-			fprintf(fp, "%-10s", centroids[10*n+i].name);
-			if(centroids[10*n+i].flag) fprintf(fp, "* "); else fprintf(fp, "  ");
+			int idx = 10 * n + i;
+			fprintf(fp, "%-10s", centroids[idx].name);
+			if(centroids[idx].flag) fprintf(fp, "* "); else fprintf(fp, "  ");
 		}
 		fprintf(fp,"\n");
 	}
@@ -396,7 +399,6 @@ bool StradaPAR::ReadV4(FILE* fp, int& line_number) {
 int StradaPAR::Read(FILE* fp){
 
 	int ret = 1;
-	int buf_length;
 	int c, mode;
 	char buf[NCHAR];
 	int opt[8];
@@ -421,7 +423,7 @@ int StradaPAR::Read(FILE* fp){
 		ret++;
 		if(fgets(buf,NCHAR,fp)==NULL) return(ret);
 		buf[strlen(buf)-1] = '\0';
-		buf_length = strlen(buf);
+		size_t buf_length = strlen(buf);
 		if( buf_length < 40 ) return(ret);
 
 		bSearchByMode = (buf[0]=='1') ? true : false ;
@@ -533,8 +535,9 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 		line_number++;
 		csv_parser(buf, pdata, 10, ',', '.');
 		for(int j=0; j < 10; j++) {
-			strncpy_s( centroids[10*i+j].name, 10, pdata[j], 10 );
-			centroids[10*i+j].name[10] = '\0';
+			int idx = 10 * i + j;
+			strncpy_s( centroids[idx].name, 11, pdata[j], 10 );
+			centroids[idx].name[10] = '\0';
 		}
 	}
 	if ( m > 0 ) {
@@ -542,8 +545,9 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 		line_number++;
 		csv_parser(buf, pdata, m, ',', '.');
 		for(int j=0; j < 10; j++) {
-			strncpy_s( centroids[10*n+j].name, 10, pdata[j], 10 );
-			centroids[10*n+j].name[10] = '\0';
+			int idx = 10 * n + j;
+			strncpy_s( centroids[idx].name, 11, pdata[j], 10 );
+			centroids[idx].name[10] = '\0';
 		}
 	}
 	line_number++;
@@ -556,9 +560,9 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 	n = atoi(p);
 	for(int i=0; i < n; i++) {
 		if( (p = strtok_s(NULL, ",", &next_token)) == NULL ) return false;
-		m = atoi(p);
-		if( m < 1 || m > nZone ) return false;
-		centroids[m-1].flag = true;
+		int k = atoi(p)-1;
+		if( k < 0 || k > nZone-1 ) return false;
+		centroids[k].flag = true;
 	}
 
 	return true;
@@ -571,33 +575,36 @@ int StradaPAR::read_od(FILE* fp, int &line_number){
 	using namespace std;
 
 	char buf[256];
-	int n, m ;
-	int len ;
-	n = nZone / 10;
-	m = nZone % 10;
+	size_t n, m ;
+	size_t Z = static_cast<size_t>(nZone);
+	n = Z / 10;
+	m = Z % 10;
 
-	for(int i=0; i<n ; i++){
+	for(size_t i=0; i<n ; i++){
 		line_number++;
 		if(fgets(buf,256,fp)==NULL) return(-1);
-		for(int j =0;j < 10;j++){
-			strncpy_s(centroids[10*i+j].name, 10, &buf[12*j],10);
-			trim(centroids[10*i+j].name,11);
-			len = strlen(centroids[10*i+j].name);
-			if( len == 0) return(-1);
-			if(buf[12*j+10] == '*') centroids[10*i+j].flag = true;
+		buf[strlen(buf) - 1] = '\0';
+		std::string line = buf;
+		for(size_t j =0;j < 10;j++){
+			std::string str = line.substr(12 * j, 10);
+			boost::trim(str);
+			if (str == "") return (-1);
+			strcpy_s(centroids[10 * i + j].name, 10, str.c_str());
+			if(line[12*j+10] == '*') centroids[10*i+j].flag = true;
 			else centroids[10*i+j].flag = false;
 		}
 	}
 	if( m > 0 ) {
 		line_number++;
 		if(fgets(buf,256,fp)==NULL) return(-1);
-
-		for(int i = 0; i < m; i++){
-			strncpy_s(centroids[10*n+i].name,10, &buf[12*i],10);
-			trim(centroids[10*n+i].name,11);
-			len = strlen(centroids[10*n+i].name);
-			if( len == 0) return(-1);
-			if(buf[12*i+10] == '*') centroids[10*n+i].flag = true;
+		buf[strlen(buf) - 1] = '\0';
+		std::string line = buf;
+		for(size_t i = 0; i < m; i++){
+			std::string str = line.substr(12 * i, 10);
+			boost::trim(str);
+			if (str == "") return (-1);
+			strcpy_s(centroids[10 * n + i].name, 10, str.c_str());
+			if(line[12*i+10] == '*') centroids[10*n+i].flag = true;
 			else centroids[10*n+i].flag = false;
 		}
 	}
@@ -676,7 +683,7 @@ bool StradaPAR::read_param(FILE* fp,int c, int &line_number)
 	char buf[100];
 	char* pdata[256];
 	int code;
-	int len;
+	size_t len;
 	float v1, v2, v3, v4, q1, q2, q3, q4, delay;
 	line_number++;
 	try {
@@ -800,13 +807,15 @@ bool StradaPAR::read_turn(FILE* fp,int c, int& line_number)
 					if( fgets(buf, 100, fp) == NULL ) throw(1);
 					if(buf[0] != 'B') throw(1);
 				}
-				strncpy_s( turn.FromNode, sizeof(turn.FromNode), &buf[5], 10);
-				trim(turn.FromNode, 11);
-				strncpy_s( turn.TurnNode, sizeof(turn.TurnNode), &buf[15], 10);
-				trim(turn.TurnNode, 11);
-				strncpy_s( turn.ToNode, sizeof(turn.ToNode), &buf[25], 10);
-				trim(turn.ToNode, 11);
-				turn.penalty = getbufFlt(buf, 35, 10);
+				buf[strlen(buf) - 1] = '\0';
+				std::string line = buf;
+				std::string str = line.substr(5, 10); boost::trim(str);
+				strcpy_s( turn.FromNode, 10, str.c_str());
+				str = line.substr(15, 10); boost::trim(str);
+				strcpy_s( turn.TurnNode, 10, str.c_str());
+				str = line.substr(25, 10); boost::trim(str);
+				strcpy_s( turn.ToNode, 10, str.c_str());
+				turn.penalty = std::stof(line.substr(35,10));
 			}
 			Turns.push_back(turn);
 		}
@@ -878,8 +887,9 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 			for(int j =0; j < m; j++ ) {
 				for(int k=0; k < 15; k++) {
 					str10 dn;
-					strncpy_s(dn.name, sizeof(dn.name), &buf[5+10*k], 10);
-					trim(dn.name,10);
+					strncpy_s(dn.name, 10, &buf[5+10*k], 10);
+					dn.name[10] = '\0';
+					trim(dn.name);
 					d_nodes.push_back(dn);
 					//printf("%d %d %s\n", j, k, d_nodes[15*j+k].name);
 				}
@@ -891,7 +901,8 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 			for(int j=0; j < n; j++) {
 				str10 dn;
 				strncpy_s(dn.name, sizeof(dn.name), &buf[5+10*j], 10);
-				trim(dn.name,10);
+				dn.name[10] = '\0';
+				trim(dn.name);
 				d_nodes.push_back(dn);
 			}
 		}
@@ -937,12 +948,12 @@ bool StradaPAR::read_detail(FILE* fp, int c, int &line_number)
 				strncpy_s(odlink.sNode, sizeof(odlink.sNode), pdata[2], 10) ; odlink.sNode[10] = '\0';
 				strncpy_s(odlink.eNode, sizeof(odlink.eNode), pdata[3], 10) ; odlink.eNode[10] = '\0';
 			} else {
-				strncpy_s(odlink.name, sizeof(odlink.name), &buf[5], 10);
-				trim(odlink.name,10);
-				strncpy_s(odlink.sNode, sizeof(odlink.sNode), &buf[15], 10);
-				trim(odlink.sNode,10);
-				strncpy_s(odlink.eNode, sizeof(odlink.eNode), &buf[25], 10);
-				trim(odlink.eNode,10);
+				strncpy_s(odlink.name, 11, &buf[5], 10); odlink.name[10] = '\0';
+				trim(odlink.name);
+				strncpy_s(odlink.sNode, 11, &buf[15], 10); odlink.sNode[10] = '\0';
+				trim(odlink.sNode);
+				strncpy_s(odlink.eNode, 11, &buf[25], 10); odlink.eNode[10] = '\0';
+				trim(odlink.eNode);
 				if( j != nOdDetail -1 ){
 					if(fgets(buf,256,fp)==NULL || buf[0] != 'D' ) {
 						od_links.clear();
@@ -998,12 +1009,12 @@ bool StradaPAR::read_route(FILE* fp,int c,  int &line_number){
 				strncpy_s(ri.eNode, sizeof(ri.eNode), pdata[3], 10) ; ri.eNode[10] = '\0';
 
 			} else {
-				strncpy_s(ri.name, sizeof(ri.name), &buf[5], 10);
-				trim(ri.name,10);
-				strncpy_s(ri.sNode, sizeof(ri.sNode), &buf[15], 10);
-				trim(ri.sNode,10);
-				strncpy_s(ri.eNode, sizeof(ri.eNode), &buf[25], 10);
-				trim(ri.eNode,10);
+				strncpy_s(ri.name, 11, &buf[5], 10); ri.name[10] = '\0';
+				trim(ri.name);
+				strncpy_s(ri.sNode, 11, &buf[15], 10); ri.sNode[10] = '\0';
+				trim(ri.sNode);
+				strncpy_s(ri.eNode, 11, &buf[25], 10); ri.eNode[10] = '\0';
+				trim(ri.eNode);
 				if( j != nRouteInf -1 ){
 					if(fgets(buf,256,fp)==NULL || buf[0] != 'E' ) {
 						ri_links.clear();
@@ -1029,7 +1040,7 @@ bool StradaPAR::read_divparam(FILE* fp,int c,  int &line_number){
 	char buf[256];
 	char* pdata[256];
 	int m ;
-	int len;
+	size_t len;
 	float ra[5];
 	try {
 		for(int i=0; i < c; i++) {

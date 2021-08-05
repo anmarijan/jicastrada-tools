@@ -19,9 +19,8 @@ int main(int argc, char* argv[])
 		printf("Success!");
 		printf("%5d\n", tnt.nLine);
 
-		for(int i=0; i < tnt.nLine; i++) {
-			TRNLine* line = &tnt.lines[i];
-			printf("%-10s\n",line->name);
+		for(const auto& line: tnt.lines) {
+			printf("%-10s\n",line.name);
 		}
 
 	}catch (std::exception& e ) {

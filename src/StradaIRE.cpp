@@ -15,20 +15,12 @@
 #include <iostream>
 #include <fstream>
 #include <boost/tokenizer.hpp>
-#include <boost/algorithm/string/trim.hpp>
 /*-------------------------------------------------------------------------*/
 #include "StradaCmn.h"
 #include "StradaIRE.h"
 #include "StradaINT.h"
 #include "tool.h"
 /*-------------------------------------------------------------------------*/
-#define READ_DUMMY_XY(A)  kip = strtok_s(NULL, sep, &ptr); \
-if(kip == NULL) throw std::runtime_error("CSV in Link Dummy XY"); \
-(A) = (float)atof(kip);
-
-#ifndef  KIP_ERROR
-#define KIP_ERROR if ( kip == NULL ) throw std::runtime_error("CSV in Link");
-#endif
 /////////////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////////////
@@ -176,33 +168,29 @@ int OnewayResult::Read(const char* buf){
 // 232+6+7*6 =
 }
 
-int OnewayResult::ReadCSV(char* next_token){
-	const char* sep = ",";
-	char* kip;
-
+int OnewayResult::ReadCSV(std::string& str){
+	std::string line = str;
 	try {
-		kip = strtok_s(NULL, sep, &next_token); avSp = (float)atof(kip);
-		kip = strtok_s(NULL, sep, &next_token); ltSp = (float)atof(kip);
-		kip = strtok_s(NULL, sep, &next_token); VCR  = (float)atof(kip);
-		kip = strtok_s(NULL, sep, &next_token); Vol  = (float)atof(kip);
-
-		for(int i=0; i < 10; i++){
-			kip = strtok_s(NULL, sep, &next_token); inVol[i] = (float)atof(kip);
-			kip = strtok_s(NULL, sep, &next_token); thVol[i] = (float)atof(kip);
-			kip = strtok_s(NULL, sep, &next_token); btVol[i] = (float)atof(kip);
+		boost::tokenizer<boost::escaped_list_separator<char> > tokens(line);
+		boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+		if (it == tokens.end()) throw 1; else avSp = std::stof(*it);
+		++it; if (it == tokens.end()) throw 1; else ltSp = std::stof(*it);
+		++it; if (it == tokens.end()) throw 1; else VCR = std::stof(*it);
+		++it; if (it == tokens.end()) throw 1; else Vol = std::stof(*it);
+		for (int i = 0; i < 10; i++) {
+			++it; if (it == tokens.end()) throw 1; else inVol[i] = std::stof(*it);
+			++it; if (it == tokens.end()) throw 1; else thVol[i] = std::stof(*it);
+			++it; if (it == tokens.end()) throw 1; else btVol[i] = std::stof(*it);
 		}
-
-		kip = strtok_s(NULL, sep, &next_token); ATL  = (float)atof(kip);
-
-		for(int i=0; i < 6; i++) {
-			kip = strtok_s(NULL, sep, &next_token);
-			trVol[i] = (float)atof(kip);
+		++it; if (it == tokens.end()) throw 1; else ATL = std::stof(*it);
+		for (int i = 0; i < 6; i++) {
+			++it; if (it == tokens.end()) throw 1; else	trVol[i] = std::stof(*it);
 		}
-	} catch(std::exception& ){
+	}
+	catch (...) {
 		return(-1);
 	}
 	return(0);
-// 232+6+7*6 =
 }
 //---------------------------------------------------------------------------
 // Save file
@@ -254,9 +242,9 @@ int IRELinkV2::Read(const char* buf){
 	std::string line = buf;
 	std::string str;
 	try {
-		str = line.substr(0, 10); boost::trim(str); strcpy_s(name, 11, str.c_str());
-		str = line.substr(10, 10); boost::trim(str); strcpy_s(sNode, 11, str.c_str());
-		str = line.substr(20, 10); boost::trim(str); strcpy_s(eNode, 11, str.c_str());
+		str = trim(line.substr(0, 10)); strcpy_s(name, 11, str.c_str());
+		str = trim(line.substr(10, 10)); strcpy_s(sNode, 11, str.c_str());
+		str = trim(line.substr(20, 10)); strcpy_s(eNode, 11, str.c_str());
 
 		length = std::stof(line.substr(30, 7));
         Vmax   = std::stof(line.substr(37, 5));
@@ -313,64 +301,81 @@ int IRELinkV2::Read(const char* buf){
 // SPACEs are trimmed
 //---------------------------------------------------------------------------
 void IRELinkV2::ReadCSV(const char* buf){
-	char* kip;
-	int counter = 0;
 	std::vector<char> vec(strlen(buf)+1);
 	vec[strlen(buf)] = '\0';
-	kip = &vec[0];
-	while( *kip != '\0') {
-		if(*kip == ',' ) counter++;
-		kip++;
+	for (size_t i = 0; i < strlen(buf); i++) vec[i] = buf[i];
+	char* buffer = &vec[0];
+	char* arr[200];
+	for (int i = 0; i < 200; i++) arr[i] = nullptr;
+	if( csv_parser(buffer, arr, 200, ',') == false) throw std::runtime_error("IRE") ;
+	size_t count;
+	for (count = 0; count < 200; count++) {
+		if (arr[count] == nullptr) break;
 	}
-	if ( counter < 109 ) throw  std::runtime_error("CSV in IRELink");
-	char* ptr;
-	const char* sep = ",";
-	kip = strtok_s(&vec[0], sep, &ptr); dqconv(name, 11, kip); trim(name);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(sNode, 11, kip); trim(name);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(eNode, 11, kip); trim(name);
-    kip = strtok_s(NULL, sep, &ptr); length = (float)atof(kip);
-    kip = strtok_s(NULL, sep, &ptr); Vmax   = (float)atof(kip);
-    kip = strtok_s(NULL, sep, &ptr); Capa   = (float)atof(kip);
-    kip = strtok_s(NULL, sep, &ptr); QV     = (int)atof(kip);
-    for(int i=0; i < 10; i++) {
-		kip = strtok_s(NULL, sep, &ptr);
-		ways[i] = *kip;
-	}
+	if (count < 113) throw std::runtime_error("IRE CSV");
+	try {
 
-    if( result[0].ReadCSV(ptr) == -1) throw std::runtime_error("IRE");
-    if( result[1].ReadCSV(ptr) == -1) throw std::runtime_error("IRE");
-
-	kip = strtok_s(NULL, sep, &ptr); linktype = *kip;
-	kip = strtok_s(NULL, sep, &ptr);
-    if( *kip == '0') evaluation = true; else evaluation = false;
-	kip = strtok_s(NULL, sep, &ptr); display = *kip;
-	kip = strtok_s(NULL, sep, &ptr); dqconv(aFlag4, 2, kip); aFlag1 = aFlag4[0];
-	kip = strtok_s(NULL, sep, &ptr); nFlag2 = atoi(kip);
-	kip = strtok_s(NULL, sep, &ptr); nFlag3 = atoi(kip);
-//	printf("%d %d", nFlag2, nFlag3);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(aFlag4, 3, kip);
-	kip = strtok_s(NULL, sep, &ptr); dqconv(aFlag5, 4, kip);
-
-	kip = strtok_s(NULL, sep, &ptr);	//dummy
-
-	kip = strtok_s(NULL, sep, &ptr); iX = (float)atof(kip);
-	kip = strtok_s(NULL, sep, &ptr); iY = (float)atof(kip);
-	kip = strtok_s(NULL, sep, &ptr); jX = (float)atof(kip);
-	kip = strtok_s(NULL, sep, &ptr); jY = (float)atof(kip);
-
-	kip = strtok_s(NULL, sep, &ptr); dummy = atoi(kip);
-//	printf("%g %g %g %g\n", iX, iY, jX, jY);
-	if( dummy > 0 ) {
-		READ_DUMMY_XY( dX[0] )
-		READ_DUMMY_XY( dY[0] )
-		if( dummy > 1 ) {
-			READ_DUMMY_XY( dX[1] )
-			READ_DUMMY_XY( dY[1] )
-			if( dummy > 2 ) {
-				READ_DUMMY_XY( dX[2] )
-				READ_DUMMY_XY( dY[2] )
+		strcpy_s(name, 11, arr[0]); trim(name);
+		strcpy_s(sNode, 11, arr[1]); trim(sNode);
+		strcpy_s(eNode, 11, arr[2]); trim(eNode);
+		length = (float)atof(arr[3]);
+		Vmax = (float)atof(arr[4]);
+		Capa = (float)atof(arr[5]);
+		QV = atoi(arr[6]);
+		for (size_t i = 0; i < 10; i++) {
+			ways[i] = arr[7 + i][0];
+		}
+		for (size_t r = 0; r < 2; r++) {
+			size_t idx = 17 + 41 * r;
+			result[r].avSp = (float)atof(arr[idx]);
+			result[r].ltSp = (float)atof(arr[idx + 1]);
+			result[r].VCR = (float)atof(arr[idx + 2]);
+			result[r].Vol = (float)atof(arr[idx + 3]);
+			for (size_t i = 0; i < 10; i++) {
+				result[r].inVol[i] = (float)atof(arr[idx + 4 + 3 * i]);
+				result[r].thVol[i] = (float)atof(arr[idx + 5 + 3 * i]);
+				result[r].btVol[i] = (float)atof(arr[idx + 6 + 3 * i]);
+			}
+			result[r].ATL = (float)atof(arr[idx + 34]);
+			for (size_t i = 0; i < 6; i++) {
+				result[r].trVol[i] = (float)atof(arr[idx + 35 + i]);
 			}
 		}
+		linktype = arr[99][0];
+		if (arr[100][0] == '0') evaluation = true; else evaluation = false;
+		display = arr[101][0];
+		aFlag1 = arr[102][0];
+		nFlag2 = atoi(arr[103]);
+		nFlag3 = atoi(arr[104]);
+		for (size_t i = 0; i < 2; i++) {
+			if (arr[105][i] == '\0') break;
+			aFlag4[i] = arr[105][i];
+		}
+		for (size_t i = 0; i < 3; i++) {
+			if (arr[106][i] == '\0') break;
+			aFlag5[i] = arr[106][i];
+		}
+		// arr[107] reserved
+		iX = (float)atof(arr[108]);
+		iY = (float)atof(arr[109]);
+		jX = (float)atof(arr[110]);
+		jY = (float)atof(arr[111]);
+		dummy = atoi(arr[112]);
+		if (dummy > 0) {
+			if (arr[113] == nullptr) throw 113; else dX[0] = (float)atof(arr[113]);
+			if (arr[114] == nullptr) throw 114; else dY[0] = (float)atof(arr[114]);
+			if (dummy > 1) {
+				if (arr[115] == nullptr) throw 115; else dX[1] = (float)atof(arr[115]);
+				if (arr[116] == nullptr) throw 116; else dY[1] = (float)atof(arr[116]);
+				if (dummy > 2) {
+					if (arr[117] == nullptr) throw 117; else dX[2] = (float)atof(arr[117]);
+					if (arr[118] == nullptr) throw 118; else dY[2] = (float)atof(arr[118]);
+				}
+			}
+		}
+	}
+	catch (int e) {
+		throw std::runtime_error("IRE CSV:" + std::to_string(e));
 	}
 }
 /////////////////////////////////////////////////////////////////////////////
@@ -797,7 +802,7 @@ void StradaIRE::WriteMInfo(const char* fname, double dai, int vtype) {
 //
 /////////////////////////////////////////////////////////////////////////////
 void StradaIRE::calc_mixy(double xi, double yi, double xj, double yj, double width) {
-    double r = sqrt(pow(xi-xj,2)+pow(yi-yj,2));
+    double r = std::sqrt(std::pow(xi-xj,2)+std::pow(yi-yj,2));
     double dx,dy;
     double w = width / 2;
     if(r == 0) {

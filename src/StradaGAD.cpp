@@ -5,10 +5,10 @@
 #include <assert.h>
 #include <iostream>
 #include <fstream>
-#include <boost/algorithm/string.hpp>  //trim
 #include <boost/tokenizer.hpp>
 #include "StradaGAD.h"
 #include "tool.h"
+#include "StradaCmn.h"
 ////////////////////////////////////////////////////////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +84,8 @@ void StradaGAD::Read(const char* fname) {
 		int counter = 3;
 		GA.resize(nData);
 		for (int i = 0; i < nData; i++) {
-			GA[i].data.resize(nZone + 1, 0);
+			int S = nZone + 1;
+			GA[i].data.resize(S, 0);
 		}
 		for (int i = 0; i < nData; i++) {
 			if (std::getline(ifs, buff).fail()) {
@@ -104,12 +105,11 @@ void StradaGAD::Read(const char* fname) {
 					clear();
 					throw(counter);
 				}
-				GA[i].name = *it;
+				GA[i].name = trim(*it);
 			}
 			else {
-				GA[i].name = buff.substr(5);
+				GA[i].name = trim(buff.substr(5));
 			}
-			boost::trim(GA[i].name);
 		}
 		for (int i = 0; i < nZone; i++) {
 			if (std::getline(ifs, buff).fail()) {

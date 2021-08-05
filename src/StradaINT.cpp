@@ -11,23 +11,14 @@
 #include <set>
 #include <stdexcept>
 #include <boost/tokenizer.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/trim.hpp>
-
+//#include <boost/algorithm/string.hpp>
+//#include <boost/algorithm/string/trim.hpp>
+#include "StradaCmn.h"
 //---------------------------------------------------------------------------
 #include "tool.h"
 #include "StradaINT.h"
 //---------------------------------------------------------------------------
 #define INT_BUF 512
-
-#define READ_DUMMY_XY(A)  kip = strtok(NULL,","); \
-if(kip == NULL) throw std::runtime_error("CSV in IRELink Dummy XY"); \
-(A) = (float)atof(kip);
-
-#ifndef KIP_ERROR
-#define KIP_ERROR if ( kip == NULL ) throw std::runtime_error("CSV in Link");
-#endif
-
 static char buff[INT_BUF];
 //---------------------------------------------------------------------------
 // For "sort by name"
@@ -90,9 +81,10 @@ bool INTLinkV2::Read(const char* link_str, size_t &pos){
 	std::string buff = link_str;
 	std::string str;
 	try {
-		str = buff.substr(0, 10); boost::trim(str); strcpy_s(name, sizeof(name), str.c_str());
-		pos = 10;  str = buff.substr(10, 10); boost::trim(str); strcpy_s(sNode, sizeof(sNode), str.c_str());
-		pos = 20;  str = buff.substr(20, 10); boost::trim(str); strcpy_s(eNode, sizeof(eNode), str.c_str());
+		str = trim(buff.substr(0, 10));
+        strcpy_s(name, sizeof(name), str.c_str());
+		pos = 10;  str = trim(buff.substr(10, 10)); strcpy_s(sNode, sizeof(sNode), str.c_str());
+		pos = 20;  str = trim(buff.substr(20, 10)); strcpy_s(eNode, sizeof(eNode), str.c_str());
 		if (name[0] == '\0' || sNode[0] == '\0' || eNode[0] == '\0') return false;
 		pos = 30; length = std::stof(buff.substr(30, 7));
 		pos = 37; Vmax = std::stof(buff.substr(37, 5));
@@ -258,9 +250,9 @@ bool INTLinkV2::ReadAsV4(char* buf) {
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::ReadAsV1(const char* buf){
 	std::string line = buf;
-	std::string str = line.substr(0, 5);  boost::trim(str); strcpy_s(name, 5, str.c_str());
-	str = line.substr(5, 5);  boost::trim(str); strcpy_s(sNode, 5, str.c_str());
-	str = line.substr(10,5);  boost::trim(str); strcpy_s(eNode, 5, str.c_str());
+	std::string str = trim(line.substr(0, 5)); strcpy_s(name, 5, str.c_str());
+	str = trim(line.substr(5, 5)); strcpy_s(sNode, 5, str.c_str());
+	str = trim(line.substr(10,5)); strcpy_s(eNode, 5, str.c_str());
 ////////////////
 	try {
 		length = std::stof(line.substr(15, 5));

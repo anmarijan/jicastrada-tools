@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 		printf("%5d\n", ire.nLink);
 	}catch (std::exception& e ) {
 		printf("%s\n", e.what());
-		printf("%s\n", ire.msg);
+		printf("%s\n", ire.msg.c_str());
 		printf("%5d %5d %5d\n", ire.nLink, ire.nNode, ire.nMode);
 		return 0;
 	}

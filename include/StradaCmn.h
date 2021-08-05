@@ -3,6 +3,7 @@
 #define StradaCmnH
 //---------------------------------------------------------------------------
 #include <stdio.h>
+#include <string>
 //---------------------------------------------------------------------------
 #ifndef MAXPATH
 #define MAXPATH 260
@@ -10,10 +11,11 @@
 typedef unsigned char byte;
 //---------------------------------------------------------------------------
 void print_header(FILE* fp, const char* str);
-
 //Check the format of "x1 y1 x2 y2" and count the number of lines
 // Width of a column is 10, the maximum lines is 36000
 int line_cord_check(FILE* fp);
+//---------------------------------------------------------------------------
+std::string trim(const std::string& str);
 //---------------------------------------------------------------------------
 class SNodeV2 {
 public:

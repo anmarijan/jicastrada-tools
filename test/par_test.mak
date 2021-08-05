@@ -1,5 +1,5 @@
 CC = g++
-OBJS = par_test.o ../src/StradaPAR.o ../src/tool.o
+OBJS = par_test.o ../src/StradaPAR.o ../src/tool.o ../src/StradaCmn.o
 PROGRAM = par_test.exe
 # GIT_HASH = $(shell git log -1 --format="%h")
 # CFLAGS  = -std=c++1y -Wall -DGITVERSION=\"$(GIT_HASH)\"

@@ -219,7 +219,11 @@ char* fixfloat(char* buff, float value, int width, int ndig) {
 }
 
 char* fixfloat(char* buff, double value, int width, int ndig) {
+	#if defined(_MSC_VER) || defined(__MINGW32__)
 	char temp_str[128];
+	#else
+	char* mem;
+	#endif
 	char value_str[16];
 	int dec, sign;
 	int last = width;
@@ -234,8 +238,13 @@ char* fixfloat(char* buff, double value, int width, int ndig) {
 	for(int i=0; i < 16; i++) value_str[i] = '0';
 
 	if( width < ndig ) ndig = width;
+	#if defined(_MSC_VER) || defined(__MINGW32__)
 	_ecvt_s(temp_str, sizeof(temp_str), value, ndig, &dec, &sign);
 	strncpy_s(value_str, sizeof(value_str), temp_str, ndig);
+	#else
+	mem = ecvt(value, ndig, &dec, &sign);
+	strncpy_s(value_str, sizeof(value_str), mem, ndig);
+	#endif
 	//dec: location of the decimal point 
 	if(sign != 0 ) {
 		buff[0] = '-';
@@ -243,8 +252,13 @@ char* fixfloat(char* buff, double value, int width, int ndig) {
 		width--;
 		if( width <= ndig ) {
 			ndig = width;
+			#if defined(_MSC_VER) || defined(__MINGW32__)
 			_ecvt_s(temp_str, sizeof(temp_str), value, width, &dec, &sign); //Re-calc for reduced width
 			strncpy_s(value_str, sizeof(value_str), temp_str, width);
+			#else
+			mem = ecvt(value, width, &dec, &sign);
+			strncpy_s(value_str, sizeof(value_str), mem, width);
+			#endif
 		}
 	}
 
@@ -307,7 +321,6 @@ bool getconfig(const char* fname, char* key, char* dst, size_t n) {
 	char buff[MAX_CONFIG_LENGTH];
 	char name[MAX_CONFIG_LENGTH];
     char* p;
-	char* next_token = NULL;
 	errno_t error = fopen_s(&fp, fname, "rt");
     if( error != 0 || fp == NULL ) return false;
 	else {
@@ -321,14 +334,16 @@ bool getconfig(const char* fname, char* key, char* dst, size_t n) {
 				}
 			}
 			if (*p == '\n') *p = '\0';
-			p = strtok_s(buff, "=", &next_token);
-			if (p) {
+			char* v = buff;
+			while (*v != '\0' && *v != '=') v++;
+			if (*v == '=') {
+				*v = '\0'; v++;
+				p = buff;
 				strcpy_s(name, sizeof(name), p);
 				trim(name);
 				if (strcmp(name, key) == 0) {
-					p = strtok_s(NULL, "\0", &next_token);
-					if (p) {
-						strcpy_s(dst, n, p);
+					if (v) {
+						strcpy_s(dst, n, v);
 						trim(dst);
 					}
 					else dst[0] = '\0';
@@ -370,8 +385,69 @@ char* strnstr(char* target, char* s, int size) {
 //---------------------------------------------------------------------------
 //
 //---------------------------------------------------------------------------
+bool csv_parser(char* input, char** array, size_t array_size, char SEP) {
+	// for (size_t i = 0; i < array_size; i++) array[i] = nullptr;
+	size_t len = strlen(input);
+	if (len == 0)return false;
+	if (input[len - 1] == '\n') {
+		if (len == 1) return false;
+		input[len - 1] = 0;
+		len--;
+	}
+	bool quate = false;
+	size_t quate_start = std::string::npos;
+	size_t quate_end = std::string::npos;
+	size_t pre = 0;
+	size_t index = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (quate) {
+			if (input[i] == '"') {
+				quate_end = i;
+				quate = false;
+			}
+		}
+		else if (input[i] == '"') {
+			quate_start = i;
+			quate = true;
+		}
+		else if (input[i] == SEP || i == len - 1) {
+			if (input[i] == SEP) input[i] = '\0';
+			if (quate_end != std::string::npos) {
+				size_t e = i - 1;
+				while (e > quate_end && (input[e] == ' ' || input[e] == '\t')) {
+					e--;
+				}
+				while (pre < quate_start && (input[pre] == ' ' || input[pre] == '\t')) {
+					pre++;
+				}
+				if (pre == quate_start && e == quate_end) {
+					pre = pre + 1; input[e] = '\0';
+				}
+				array[index] = &input[pre];
+				quate_start = quate_end = std::string::npos;
+			}
+			else {
+				while (pre < i && (input[pre] == ' ' || input[pre] == '\t')) {
+					pre++;
+				}
+				size_t e = i;
+				while (e > pre && (input[e] == ' ' || input[e] == '\t')) {
+					e--;
+				}
+				if (e < i) input[e] = '\0';
+				array[index] = &input[pre];
+			}
+			pre = i + 1;
+			index++;
+		}
+	}
+	return true;
+}
+//---------------------------------------------------------------------------
+//
+//---------------------------------------------------------------------------
 char* csv_parser(char* input, char** array, int c, char SEP, char DIG) {
-	int len = strlen(input);
+	size_t len = strlen(input);
 	if(len == 0 ) return 0;
 	if(input[len-1] == '\n') {
 		if(len == 1 ) return 0;

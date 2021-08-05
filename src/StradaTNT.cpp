@@ -10,15 +10,12 @@
 #include <set>
 #include <fstream>
 #include <boost/tokenizer.hpp>
-#include <boost/algorithm/string/trim.hpp>
 /*----------------------------------------------------------------------------*/
-#include "StradaTNT.h"
 #include "tool.h"
+#include "StradaCmn.h"
+#include "StradaTNT.h"
 /*----------------------------------------------------------------------------*/
 #define MAX_BUFF   1024
-#define CSV_READ   kip = strtok_s(NULL, ",", &next_token); if( kip == NULL ) return false; trim(kip);
-///////////////////////////////////////////////////////////////////////////////
-
 ///////////////////////////////////////////////////////////////////////////////
 TRNLine::TRNLine() {
     memset(name, 0, 11);
@@ -36,9 +33,9 @@ bool TRNLine::ReadCSV(const std::string& buff) {
 	std::string str;
 	size_t st = (*it).find_first_of("\"");
 	size_t ed = (*it).find_last_of("\"");
-	if (st != std::string::npos && ed != std::string::npos && st + 1 < ed) str = (*it).substr(st + 1, ed - st - 1);
-	else str = (*it);
-	boost::trim(str);
+	if (st != std::string::npos && ed != std::string::npos && st + 1 < ed) str = trim((*it).substr(st + 1, ed - st - 1));
+	else str = trim(*it);
+	
 	strcpy_s(name, 11, str.c_str());
 	++it;
 	if (it == tokens.end()) return false; else mode = std::stoi(*it); ++it;
@@ -53,9 +50,8 @@ bool TRNLine::ReadCSV(const std::string& buff) {
 		++it; if (it == tokens.end()) return false;
 		st = (*it).find_first_of("\"");
 		ed = (*it).find_last_of("\"");
-		if (st != std::string::npos && ed != std::string::npos && st + 1 < ed) str = (*it).substr(st + 1, ed - st - 1);
-		else str = (*it);
-		boost::trim(str);
+		if (st != std::string::npos && ed != std::string::npos && st + 1 < ed) str = trim((*it).substr(st + 1, ed - st - 1));
+		else str = trim(*it);
 		strcpy_s(node.name, 11, str.c_str());
 		nodes.push_back(node);
 	}
@@ -120,7 +116,7 @@ void StradaTNT::Read(const char* fname)
 			TRNLine line;
 			if (std::getline(ifs, buff).fail()) throw (5);
 			if (csv == 0) {
-				str = buff.substr(0, 10); boost::trim(str);
+				str = trim(buff.substr(0, 10));
 				strcpy_s(line.name, 11, str.c_str());
 				short mode = (short)std::stoi(buff.substr(10, 2));
 				short way = (short)(buff[2] - '0');
@@ -143,7 +139,7 @@ void StradaTNT::Read(const char* fname)
 					int idx = 23 + 11 * j;
 					TRNNode node;
 					node.access = buff[idx]; idx = idx + 1;
-					str = buff.substr(idx, 10); boost::trim(str);
+					str = trim(buff.substr(idx, 10));
 					strcpy_s(node.name, 11, str.c_str());
 					line.nodes.push_back(node);
 				}

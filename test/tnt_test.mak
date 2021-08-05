@@ -1,5 +1,5 @@
 CC = g++
-OBJS = tnt_test.o ../src/tool.o ../src/StradaTNT.o
+OBJS = tnt_test.o ../src/tool.o ../src/StradaCmn.o ../src/StradaTNT.o
 PROGRAM = tnt_test.exe
 CFLAGS  = -std=c++1y -Wall -I../include/
 LFLAGS  = -static

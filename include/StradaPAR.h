@@ -13,11 +13,15 @@ extern char strada_error[256];
 struct str10{
 	char name[11];
 	str10();
+	str10(const str10&);
+	str10& operator=(const str10&);
 };
 struct CentInfo {
 	char name[11];
 	bool flag;
 	CentInfo();
+	CentInfo(const CentInfo&);
+	CentInfo& operator=(const CentInfo&);
 };
 struct TurnControl {
 	char FromNode[11];
@@ -25,12 +29,18 @@ struct TurnControl {
 	char TurnNode[11];
 	float penalty;
 	TurnControl();
+	TurnControl(const char* s, const char* e, const char* n, float f);
+	TurnControl(const TurnControl&);
+	TurnControl& operator=(const TurnControl&);
 };
 struct LinkNode {
 	char sNode[11];
 	char eNode[11];
 	char name[11];
 	LinkNode();
+	LinkNode(const char* s, const char* e, const char* n);
+	LinkNode(const LinkNode&);
+	LinkNode& operator=(const LinkNode&);
 };
 struct JHPC_Param {
 	int mode;
@@ -142,7 +152,6 @@ public:
 //////////////////////////////////////////////////
 public:
 	StradaPAR();
-
 	int Read(FILE* fp);
 	void Read(const char* file_name);
 

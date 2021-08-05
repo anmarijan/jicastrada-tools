@@ -24,6 +24,7 @@ bool getconfig(const char* fname, char* key, char* dst, size_t n);
 char* strnstr(char* target, char* s, int size);
 
 void dqconv(char* dest, size_t n, char* source);
+bool csv_parser(char* input, char** array, size_t array_size, char SEP);
 char* csv_parser(char* input, char** array, int c, char SEP, char DIG);
 
 #endif

@@ -2,13 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdexcept>
-#pragma hdrstop
-
 #include "StradaGAD.h"
 //---------------------------------------------------------------------------
-
-#pragma argsused
-
 int main(int argc, char* argv[])
 {
 	if( argc != 2 ) {

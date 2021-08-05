@@ -6,6 +6,7 @@
 #include "StradaCmn.h"
 #include "StradaINT.h"
 #include <vector>
+#include <string>
 #include <boost/intrusive_ptr.hpp>
 //---------------------------------------------------------------------------
 // A part of a IRE record (oneway)
@@ -31,7 +32,7 @@ public:
 	float veh_vol(float pcu[], int = 0);
 
 	int Read(const char* str);
-	int ReadCSV(char* next_token);
+	int ReadCSV(std::string& str);
 	void Write(FILE* fp);
 	void WriteCSV(FILE* fp);
 };

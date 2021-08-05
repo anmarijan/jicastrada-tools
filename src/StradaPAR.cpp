@@ -7,8 +7,9 @@
 #include <set>
 #include <string>
 #include <fstream>
-#include <boost/algorithm/string/trim.hpp>
+#include <boost/tokenizer.hpp>
 //---------------------------------------------------------------------------
+#include "StradaCmn.h"
 #include "StradaPAR.h"
 #include "tool.h"
 //---------------------------------------------------------------------------
@@ -20,21 +21,69 @@
 str10::str10() {
 	memset(name, 0, 11);
 }
+str10::str10(const str10& obj) {
+	strcpy_s(name, 11, obj.name);
+}
+str10& str10::operator=(const str10& obj) {
+	strcpy_s(name, 11, obj.name);
+	return *this;
+}
 CentInfo::CentInfo(){
 	memset(name, 0, 11);
 	flag = true;
 }
+CentInfo::CentInfo(const CentInfo& obj) {
+	strcpy_s(name, 11, obj.name); flag = obj.flag;
+}
+CentInfo& CentInfo::operator=(const CentInfo& obj) {
+	strcpy_s(name, 11, obj.name); flag = obj.flag;
+    return *this;
+}
+
 TurnControl::TurnControl(){
 	memset(FromNode,0,11);
 	memset(	 ToNode,0,11);
 	memset(TurnNode,0,11);
 	penalty = 0;
 }
+TurnControl::TurnControl(const char* s, const char* e, const char* n, float f) {
+	strcpy_s(FromNode, 11, s); strcpy_s(ToNode, 11, e); strcpy_s(TurnNode, 11, n);
+	penalty = f;
+}
+TurnControl::TurnControl(const TurnControl& obj) {
+	strcpy_s(FromNode, 11, obj.FromNode); 
+	strcpy_s(ToNode, 11, obj.ToNode); 
+	strcpy_s(TurnNode, 11, obj.TurnNode);
+	penalty = obj.penalty;
+}
+TurnControl& TurnControl::operator=(const TurnControl& obj) {
+	strcpy_s(FromNode, 11, obj.FromNode);
+	strcpy_s(ToNode, 11, obj.ToNode);
+	strcpy_s(TurnNode, 11, obj.TurnNode);
+	penalty = obj.penalty;
+    return *this;
+}
+
 LinkNode::LinkNode(){
 	memset(sNode, 0, 11);
 	memset(eNode, 0, 11);
 	memset(name , 0, 11);
 }
+LinkNode::LinkNode(const char* s, const char* e, const char* n) {
+	strcpy_s(sNode, 11, s); strcpy_s(eNode,11, e ); strcpy_s(name, 11, n);
+}
+LinkNode::LinkNode(const LinkNode& obj) {
+	strcpy_s(sNode, 11, obj.sNode); 
+	strcpy_s(eNode, 11, obj.eNode); 
+	strcpy_s(name, 11, obj.name);
+}
+LinkNode& LinkNode::operator=(const LinkNode& obj) {
+	strcpy_s(sNode, 11, obj.sNode);
+	strcpy_s(eNode, 11, obj.eNode);
+	strcpy_s(name, 11, obj.name);
+    return *this;
+}
+
 QV_PARAM::QV_PARAM(){
 	v1 = v2 = v3 = v4 = 0;
 	q1 = q2 = q3 = q4 = 0;
@@ -52,16 +101,16 @@ StradaPAR::StradaPAR(){
 	nTurn = nDirection = nOdDetail = nRouteInf = 0;
 	init();
 }
-
 void StradaPAR::init(){
 	name = "PAR FILE";
 	nParam = 0;
 	nMode = 1;	//Initial value of mode is 1
 	centroids.clear(); nZone = 0;
 	Turns.clear(); 	   nTurn = 0;
-	d_nodes.clear();   nDirection =  0;
+
 	od_links.clear();  nOdDetail = 0;
 	ri_links.clear();  nRouteInf = 0;
+    d_nodes.clear();   nDirection =  0;
 	for(int i=0; i < 99; i++) {
 		qvdata[i].reset();
 	}
@@ -552,15 +601,15 @@ bool StradaPAR::read_odv4(FILE* fp, int& line_number) {
 	}
 	line_number++;
 	if(fgets(buf, NCHAR,fp)==NULL) return false;
-	char* token = buf;
-	char* p = token;
-	char* next_token = NULL;
-	p = strtok_s(buf, ",",&next_token);// Z
-	p = strtok_s(NULL, ",",&next_token);
-	n = atoi(p);
+	std::string line = buf;
+	boost::tokenizer<boost::escaped_list_separator<char> > tokens(line);
+	boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+	if (it == tokens.end()) return false;// Z
+	++it; if (it == tokens.end()) return false; else n = std::stoi(*it);
 	for(int i=0; i < n; i++) {
-		if( (p = strtok_s(NULL, ",", &next_token)) == NULL ) return false;
-		int k = atoi(p)-1;
+		int k;
+		++it; if (it == tokens.end()) return false; else k = std::stoi(*it);
+		k--;
 		if( k < 0 || k > nZone-1 ) return false;
 		centroids[k].flag = true;
 	}
@@ -586,10 +635,9 @@ int StradaPAR::read_od(FILE* fp, int &line_number){
 		buf[strlen(buf) - 1] = '\0';
 		std::string line = buf;
 		for(size_t j =0;j < 10;j++){
-			std::string str = line.substr(12 * j, 10);
-			boost::trim(str);
+			std::string str = trim(line.substr(12 * j, 10));
 			if (str == "") return (-1);
-			strcpy_s(centroids[10 * i + j].name, 10, str.c_str());
+			strcpy_s(centroids[10 * i + j].name, 11, str.c_str());
 			if(line[12*j+10] == '*') centroids[10*i+j].flag = true;
 			else centroids[10*i+j].flag = false;
 		}
@@ -600,10 +648,9 @@ int StradaPAR::read_od(FILE* fp, int &line_number){
 		buf[strlen(buf) - 1] = '\0';
 		std::string line = buf;
 		for(size_t i = 0; i < m; i++){
-			std::string str = line.substr(12 * i, 10);
-			boost::trim(str);
+			std::string str = trim(line.substr(12 * i, 10));
 			if (str == "") return (-1);
-			strcpy_s(centroids[10 * n + i].name, 10, str.c_str());
+			strcpy_s(centroids[10 * n + i].name, 11, str.c_str());
 			if(line[12*i+10] == '*') centroids[10*n+i].flag = true;
 			else centroids[10*n+i].flag = false;
 		}
@@ -809,11 +856,11 @@ bool StradaPAR::read_turn(FILE* fp,int c, int& line_number)
 				}
 				buf[strlen(buf) - 1] = '\0';
 				std::string line = buf;
-				std::string str = line.substr(5, 10); boost::trim(str);
+				std::string str = trim(line.substr(5, 10));
 				strcpy_s( turn.FromNode, 10, str.c_str());
-				str = line.substr(15, 10); boost::trim(str);
+				str = trim(line.substr(15, 10));
 				strcpy_s( turn.TurnNode, 10, str.c_str());
-				str = line.substr(25, 10); boost::trim(str);
+				str = trim(line.substr(25, 10));
 				strcpy_s( turn.ToNode, 10, str.c_str());
 				turn.penalty = std::stof(line.substr(35,10));
 			}
@@ -887,7 +934,7 @@ bool StradaPAR::read_direction(FILE* fp,int c,  int &line_number)
 			for(int j =0; j < m; j++ ) {
 				for(int k=0; k < 15; k++) {
 					str10 dn;
-					strncpy_s(dn.name, 10, &buf[5+10*k], 10);
+					strncpy_s(dn.name, 11, &buf[5+10*k], 10);
 					dn.name[10] = '\0';
 					trim(dn.name);
 					d_nodes.push_back(dn);

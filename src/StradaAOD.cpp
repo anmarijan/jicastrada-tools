@@ -10,30 +10,32 @@
 #include <fstream>
 #include <string>
 #include <boost/tokenizer.hpp>
-#include <boost/algorithm/string/trim.hpp>
 #define AOD_BAD_ALLOC 1
 /*----------------------------------------------------------------------------*/
+#include "StradaCmn.h"
 #include "StradaAOD.h"
 #include "tool.h"
-// #include "Matrix.h"
 /*----------------------------------------------------------------------------*/
 ODMatrix::ODMatrix(){
 	nZone = 0;
 }
 ODMatrix::ODMatrix(int n){
-	data.reset(new double[n*n]);
-	for(int i=0; i< n*n; i++ ) data[i] = 0;
+	int M = n * n;
+	data.reset(new double[M]);
+	for(int i=0; i< M; i++ ) data[i] = 0;
 	nZone = n;
 }
 ODMatrix::ODMatrix(const char* od_name, int n){
+	int M = n * n;
 	name = od_name;
-	data.reset(new double[n*n]);
-	for(int i=0; i< n*n; i++ ) data[i] = 0;
+	data.reset(new double[M]);
+	for(int i=0; i< M; i++ ) data[i] = 0;
 	nZone = n;
 }
 void ODMatrix::init(int n){
-	data.reset(new double[n*n]);
-	for(int i=0; i< n*n; i++ ) data[i] = 0;
+	int M = n * n;
+	data.reset(new double[M]);
+	for(int i=0; i< M; i++ ) data[i] = 0;
 	nZone = n;
 }
 
@@ -292,8 +294,7 @@ void StradaAOD::Read(const char* fname){
 			length = (length < static_cast<size_t>(nTable)) ? length : nTable;
 			for(size_t i=0; i < length; i++){
 				std::string str = buff.substr(15 + name_len * i, name_len);
-				boost::trim(str);
-				tables[i].name = str;
+				tables[i].name = trim(str);
 			}
 		}
 		//From line 3 

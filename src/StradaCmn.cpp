@@ -5,6 +5,7 @@
 #include <time.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
+#define __STDC_WANT_LIB_EXT1__ 1
 #include "tool.h"
 #include "StradaCmn.h"
 //---------------------------------------------------------------------------
@@ -12,11 +13,15 @@ void print_header(FILE* fp, const char* str){
 
 	time_t timer;
 	struct tm lt;
-
+	bool result = true;
 	timer = time(NULL);
+	#if defined(_MSC_VER) || defined(__MINGW32__)
 	errno_t error = localtime_s(&lt,&timer);
-
-	if (error == 0) {
+	if( error != 0) result = false;
+	#else
+	if( localtime_s(&timer,&lt) == NULL) result = false;
+	#endif
+	if (result) {
 		fprintf(fp, "%s %04d-%02d-%02d %02d:%02d:%02d\n", str,
 			lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec);
 	}
@@ -42,6 +47,17 @@ int line_cord_check(FILE* fp){
 	}
 	if( fseek(fp, curpos, SEEK_SET) != 0 ) return -2;
 	return ret;
+}
+/*----------------------------------------------------------------------------*/
+std::string trim(const std::string& str) {
+	std::string result;
+	const char* spaces = " \t";
+	std::string::size_type left = str.find_first_not_of(spaces);
+	if (left != std::string::npos) {
+		std::string::size_type right = str.find_last_not_of(spaces);
+		result = str.substr(left, right - left + 1);
+	}
+	return result;
 }
 /*----------------------------------------------------------------------------*/
 SNodeV2::SNodeV2(){

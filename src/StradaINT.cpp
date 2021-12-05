@@ -1,4 +1,3 @@
-#include <pch.h>
 //---------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,11 +34,7 @@ void intrusive_ptr_add_ref(INTLinkV2* p) {
 	p->ref_counter++;
 }
 void intrusive_ptr_release(INTLinkV2* p) {
-	if( p->ref_counter > 1 ) p->ref_counter--;
-	else {
-		p->ref_counter = 0;
-		delete p;
-	}
+	if (--p->ref_counter == 0) delete p;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +63,7 @@ INTLinkV2::INTLinkV2(SLinkV2& s) : SLinkV2(s) {
 ////////////////////////////////////////////////////////////////////////////////
 INTLinkV2& INTLinkV2::operator=(const INTLinkV2& obj) {
 	SLinkV2::operator=(obj);
+	ref_counter = 0;
 	for(int i=0; i < 10; i++) fare[i] = obj.fare[i];
 	color = obj.color;
 	bLinkOD = obj.bLinkOD;
@@ -210,8 +206,11 @@ bool INTLinkV2::ReadCSV(char* link_str) {
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::ReadAsV4(char* buf) {
     char* pdata[46];
+	for (int i = 0; i < 46; i++) pdata[i] = nullptr;
 	char* temp = csv_parser(buf, pdata, 45, ',', '.'); //destroy buf
-
+	for (int i = 0; i < 45; i++) {
+		if (pdata[i] == nullptr) return false;
+	}
 	SAFE_CPY(name, pdata[0]);
 	SAFE_CPY(sNode, pdata[1]);
 	SAFE_CPY(eNode, pdata[2]);
@@ -609,7 +608,7 @@ void StradaINT::Write(FILE* fp){
 ////////////////////////////////////////////////////////////////////////////////
 // Save as
 ////////////////////////////////////////////////////////////////////////////////
-void StradaINT::Write(char* file_name){
+void StradaINT::Write(const char* file_name){
 	FILE* fp =  NULL;
 	errno_t error = fopen_s(&fp, file_name, "wt");
 	if(error != 0 || fp == NULL) throw std::runtime_error("INT");

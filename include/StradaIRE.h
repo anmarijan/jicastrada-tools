@@ -46,7 +46,7 @@ public:
 
 	IRELinkV2();
 	IRELinkV2(SLinkV2& s);
-
+	IRELinkV2(const LinkPtr link);
 	int Vol() { return (int)(result[0].Vol + result[1].Vol); }
 	float pass_vol(float pcu[], float apc[], int t = 0);
 	float veh_vol(float pcu[], int = 0);
@@ -84,7 +84,7 @@ public:
 	int coordinate;	// 0:screen, 1:mathematical, 2:latitude,longitude
 	float APC[10];	// average number of passengers by mode
 	float PCU[10];  // PCU by mode
-
+    char version;
     std::string comment;
     std::string msg;
 

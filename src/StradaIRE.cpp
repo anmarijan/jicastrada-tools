@@ -1,4 +1,3 @@
-#include <pch.h>
 /*-------------------------------------------------------------------------*/
 #include <new>
 #include <stdio.h>
@@ -235,6 +234,10 @@ IRELinkV2::IRELinkV2() : SLinkV2() {
 IRELinkV2::IRELinkV2(SLinkV2& s) : SLinkV2(s) {
 	ref_counter = 0;
 }
+
+IRELinkV2::IRELinkV2(const LinkPtr link) : SLinkV2(*(link.get())) {
+	ref_counter = 0;
+}
 //------------------------------------------------------------------------------
 //! Read link data
 //------------------------------------------------------------------------------
@@ -344,7 +347,8 @@ void IRELinkV2::ReadCSV(const char* buf){
 		linktype = arr[99][0];
 		if (arr[100][0] == '0') evaluation = true; else evaluation = false;
 		display = arr[101][0];
-		aFlag1 = arr[102][0];
+		if (arr[102][0] == '\0') aFlag1 = ' ';
+		else aFlag1 = arr[102][0];
 		nFlag2 = atoi(arr[103]);
 		nFlag3 = atoi(arr[104]);
 		for (size_t i = 0; i < 2; i++) {
@@ -481,10 +485,10 @@ void IRELinkV2::WriteCSV(FILE* fp) {
 	fprintf(fp,"%c%c,%c%c%c,",aFlag4[0],aFlag4[1],aFlag5[0],aFlag5[1],aFlag5[2]);
 	fprintf(fp,"\"          \",");  //Strada Ver 3.5
 //	fprintf(fp,"          ");
-	fprintf(fp,"%10.8g,%10.8g,%10.8g,%10.8g,", iX,iY,jX,jY);
+	fprintf(fp,"%.7g,%.7g,%.7g,%.7g,", iX,iY,jX,jY);
 	fprintf(fp,"%5d",dummy);
 	for(int i=0; i < dummy; i++) {
-		fprintf(fp,",%10.8g,%10.8g",dX[i],dY[i]);
+		fprintf(fp,",%.7g,%.7g",dX[i],dY[i]);
 	}
 	fprintf(fp,"\n");
 }
@@ -493,6 +497,7 @@ void IRELinkV2::WriteCSV(FILE* fp) {
 //------------------------------------------------------------------------------
 StradaIRE::StradaIRE(){
 	nLink = nNode = nMode = 0;
+	version = '2';
     coordinate = 0;
 	csv = false;
 	for( int i=0; i < 10; i++){
@@ -571,14 +576,16 @@ void StradaIRE::WriteAsINTV2(char* fname){
 // Read IRE file
 //------------------------------------------------------------------------------
 void StradaIRE::Read(const char* fname){
-	std::ifstream ifs(fname, std::ios_base::in);
+	std::ifstream ifs(fname);
 	if (!ifs) {
 		throw std::runtime_error("Cannot open IRE file");
 	}
 	std::string buff;
 	try {
 		if (std::getline(ifs, buff).fail()) throw(1);
-		if (buff.compare(0, 4, "IRE2") != 0) throw(1);
+        if (buff.length() < 5) throw(1);
+		if (buff.compare(0, 3, "IRE") != 0) throw(1);
+        version = buff[3];
 		if (buff[4] == '*') csv = true; else csv = false;
 		comment = buff.substr(5);
 		if (std::getline(ifs, buff).fail()) throw(2);
@@ -667,9 +674,10 @@ void StradaIRE::Write(FILE* fp){
 	}
 	nNode = static_cast<int>(node_table.size());
 
-	fprintf(fp,"IRE2 ");
-	//print_header(fp,"IRE2");
-    fprintf(fp, "%s\n", comment.c_str());
+	if( csv ) fprintf(fp, "IRE2* ");
+	else fprintf(fp,"IRE2 ");
+
+	fprintf(fp, "%s\n", comment.c_str());
 
 	if ( csv ) {
 		fprintf(fp,"%d,%d,%d,",nLink, nNode, nMode);

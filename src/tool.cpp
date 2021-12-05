@@ -219,102 +219,25 @@ char* fixfloat(char* buff, float value, int width, int ndig) {
 }
 
 char* fixfloat(char* buff, double value, int width, int ndig) {
-	#if defined(_MSC_VER) || defined(__MINGW32__)
-	char temp_str[128];
-	#else
-	char* mem;
-	#endif
-	char value_str[16];
-	int dec, sign;
-	int last = width;
-	int pos = 0;
-	int zn = 0;	// Number of 0 in the right of a string
-	if( value == 0 ) {
-		buff[width-1] = '0';
-		for(int i=0; i < width-1; i++) buff[i] = ' ';
-		buff[width] = '\0';
-		return buff;
-	}
+    char value_str[256];
 	for(int i=0; i < 16; i++) value_str[i] = '0';
-
-	if( width < ndig ) ndig = width;
-	#if defined(_MSC_VER) || defined(__MINGW32__)
-	_ecvt_s(temp_str, sizeof(temp_str), value, ndig, &dec, &sign);
-	strncpy_s(value_str, sizeof(value_str), temp_str, ndig);
-	#else
-	mem = ecvt(value, ndig, &dec, &sign);
-	strncpy_s(value_str, sizeof(value_str), mem, ndig);
-	#endif
-	//dec: location of the decimal point 
-	if(sign != 0 ) {
-		buff[0] = '-';
-		pos = 1;
-		width--;
-		if( width <= ndig ) {
-			ndig = width;
-			#if defined(_MSC_VER) || defined(__MINGW32__)
-			_ecvt_s(temp_str, sizeof(temp_str), value, width, &dec, &sign); //Re-calc for reduced width
-			strncpy_s(value_str, sizeof(value_str), temp_str, width);
-			#else
-			mem = ecvt(value, width, &dec, &sign);
-			strncpy_s(value_str, sizeof(value_str), mem, width);
-			#endif
-		}
-	}
-
-	if( dec > width ) {
-		for(int i=0; i < width; i++) buff[pos++] = '9';
-		buff[last] = '\0';
-		return buff;
-	} else if (dec == width ) {
-		for(int i=0; i < width; i++) buff[pos+i] = value_str[i];
-		buff[last] = '\0';
-		return buff;
-	} else if( dec > 0 ){
-		for(int i=0; i < dec; i++)
-			buff[pos++] = value_str[i];
-		buff[pos++] = '.';
-		for(int i=dec; i < width; i++)
-			buff[pos++] = value_str[i];
-		buff[last] = '\0';
-	} else {
-		buff[pos++] = '.';
-		dec = -dec;
-		for(int i=0; i < dec; i++) {
-			buff[pos++] = '0';
-			// smaller than the number of digit
-			if (pos == last) {
-				for(int j=0; j < last-1; j++ ) buff[j] = ' ';
-				buff[last-1] = '0';
-				if( sign != 0 ) buff[last-2] = '-';
-				return buff;
-			}
-		}
-		for(int i=0; i < width-dec-1; i++) 	//2 -> 1
-			buff[pos++] = value_str[i];
-		buff[last] = '\0';
-	}
-	// Count the number of 0
-	for(pos=last-1; buff[pos] != '.'; pos--) {
-		if( buff[pos] == '0' ) zn++;
-		else break;
-	}
-	if( buff[pos] == '.') {
-		zn++;
-		pos--;
-	}
-	if( zn > 0 ) {
-		for(int i=0; i < last-zn; i++, pos--) {
-			buff[last-i-1] = buff[pos];
-		}
-		for(int i=0; i < zn; i++) buff[i] = ' ';
-	}
-
+	double c_num = 10 * width - 1;
+    if( value > c_num) {
+        for(int i=0; i < width; i++) buff[i] = '9';
+		buff[width] = '\0';
+        return buff;
+    }
+    snprintf(value_str, sizeof(value_str), "%.8f", value);
+    int len = strlen(value_str);
+    for(int i = len; i < width; i++) value_str[i] = ' ';
+    value_str[width] = '\0';
+    if( value_str[width-1] == '.' ) value_str[width-1] = ' ';
+    strcpy_s(buff, width+1, value_str);
 	return buff;
 }
 
 //------------------------------------------------------------------------------
-// Read a configuration file 
+// Read a configuration file
 //------------------------------------------------------------------------------
 bool getconfig(const char* fname, char* key, char* dst, size_t n) {
 	FILE* fp = NULL;

@@ -10,7 +10,7 @@
 //----------------------------------------------------------------------------
 class INTLinkV2 : public SLinkV2
 {
-	int ref_counter;
+	int ref_counter = 0;
 public:
 	float	fare[10];	//
 	char	color;		//
@@ -33,7 +33,8 @@ public:
     bool ReadAsV4(char* buff);
 	void Write(FILE* fp);
     void WriteCSV(FILE* fp, int varsion);
-
+    // Pointer
+    int get_ref_counter() const { return ref_counter; }
 	friend void intrusive_ptr_add_ref(INTLinkV2* p);
 	friend void intrusive_ptr_release(INTLinkV2* p);
 	// for sort by name
@@ -68,7 +69,7 @@ public:
 	bool Read(FILE* fp);
 	void Read(const char* file_name);
 	void Write(FILE* fp);
-    void Write(char* file_name);
+    void Write(const char* file_name);
     const char* msg() {return errmsg.c_str(); };
 
 	LinkPtr getLink(int i);

@@ -3,18 +3,19 @@
 #define calcaodH
 //---------------------------------------------------------------------------
 #include "StradaAOD.h"
+#include <string>
 //---------------------------------------------------------------------------
 class CalcAOD {
 public:
-    char errmsg[256];
+    std::string errmsg;
 private:
     StradaAOD aod1;
     StradaAOD aod2;
     StradaAOD aod3;
 
 public:
-	int nTable;
-	int nZone;
+	int nTable = 0;
+	int nZone = 0;
     bool ReadStradaAOD(int n, char* fname);
     void WriteStradaAOD(int n, char* fname);
     void plus();
@@ -30,7 +31,7 @@ public:
 	void scalar(int t, double a);	//テーブルt を一律a倍する
 	void insert();	//テーブルの追加
     void aodcopy();
-    float getOD(int n, int t, int i, int j);	//10
+    double getOD(int n, int t, int i, int j);	//10
     void clear(int t);	//11
     void extract(int t, bool csv = false);
     void append();	//aod1の最後にaod2を追加したものをaod3とする

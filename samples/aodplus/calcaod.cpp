@@ -1,13 +1,14 @@
 //---------------------------------------------------------------------------
-#include <string.h>
 #include <stdio.h>
+#include <fstream>
+#include <sstream>
 #include <vector>
 #include <stdexcept>
 //---------------------------------------------------------------------------
 #include "calcaod.h"
 #include "fratar.h"
 #include "StradaGAD.h"
-#include "tool.h"
+//#include "tool.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 //  ファイル読み込み
@@ -22,9 +23,8 @@ bool CalcAOD::ReadStradaAOD(int n, char* fname)
 		}
         else if( n==2 ) aod2.Read(fname);
         else aod3.Read(fname);
-    } catch(std::exception& e){
-		fprintf(stderr, "Cannot read %s\n", fname);
-        strcpy(errmsg, e.what());
+    } catch(const std::runtime_error& e){
+		errmsg = e.what();
         return false;
     }
     return true;
@@ -39,7 +39,8 @@ void CalcAOD::WriteStradaAOD(int n, char* fname)
     if( n == 3 && aod3.nZone == 0 ) return;
 
     FILE* fp;
-    if( (fp = fopen(fname, "wt")) != NULL )
+	errno_t err = fopen_s(&fp, fname, "wt");
+    if( err == 0 )
     {
         if( n == 1 ) aod1.Write(fp);
         else if( n == 2) aod2.Write(fp);
@@ -145,8 +146,8 @@ int CalcAOD::growth(const char* fname, int flag) {
     std::vector<double> vec;
     char buff[256];
     int count;
-
-    if((fp = fopen(fname, "rt"))==NULL) return (-1);
+	errno_t err = fopen_s(&fp, fname, "rt");
+    if( err != 0 ) return (-1);
 
 	if( aod1.nZone == 0 ) return (-2);
 	if( aod3.nZone != aod1.nZone || aod3.nTable != aod1.nTable ) {
@@ -210,7 +211,7 @@ void CalcAOD::zero_plus(){
 
     int nTable = aod1.nTable;
     int nZone  = aod1.nZone;
-    float data1, data2;
+    double data1, data2;
 
     aod3.allocTable(nTable, nZone);
     for(int t=0; t < nTable; t++ ) {
@@ -238,14 +239,14 @@ bool CalcAOD::calc_fratar(char* fname)
 	try {
 		gad.Read(fname);
 	} catch (const std::runtime_error& e) {
-		sprintf_s(errmsg, sizeof(errmsg), e.what() );
+		errmsg = e.what();
 		return false;
 	}
 
 	int n_ga = 2 * aod1.nTable;
 
 	if(gad.nZone != aod1.nZone || gad.nData != n_ga ) {
-        sprintf(errmsg, "no. of zone or data does not match");
+        errmsg =  "no. of zone or data does not match";
         return false;
 	}
 	aod3.clear();
@@ -269,11 +270,11 @@ bool CalcAOD::calc_fratar(char* fname)
 		int ret = frt.calc();
 		if( ret < 0 ) {
 			if( ret == -2) {
-                sprintf(errmsg,"Convergence error :table %d", t+1);
+                errmsg = "Convergence error :table " + std::to_string(t+1);
             }
 			else if(ret < -100) {
 				ret = -(100+ret);
-				sprintf(errmsg, "0 G/A was found in zone %d (table %d)." ,ret, t+1);
+				errmsg =  "0 G/A was found in zone " + std::to_string(ret) + "(table " + std::to_string(t+1) + ")";
 			}
 			aod3.clear();
 			return false;
@@ -295,16 +296,16 @@ bool CalcAOD::calc_fratar(char* fname)
 bool CalcAOD::make_gad(char* fname, bool csv) {
 
 	FILE* fp;
-	float data_g, data_a;
+	double data_g, data_a;
 	StradaGAD gad;
-	char buf[25]; //ODのテーブル名は半角10字まで(STRADA Mannual)
+	std::string buf;
 
 	gad.init(aod1.nZone, 2 * aod1.nTable);
 	for(int i=0; i < aod1.nTable; i++) {
-		sprintf(buf,"%sG", aod1.tables[i].name.c_str());
-		gad.set_title(2*i, buf);
-		sprintf(buf,"%sA", aod1.tables[i].name.c_str());
-		gad.set_title(2*i+1, buf);
+		buf = aod1.tables[i].name + "G";
+		gad.set_title(2*i, buf.c_str());
+		buf = aod1.tables[i].name + "A";
+		gad.set_title(2*i+1, buf.c_str());
 		for(int j=0; j < aod1.nZone; j++) {
 			data_g = 0;
 			data_a = 0;
@@ -317,13 +318,13 @@ bool CalcAOD::make_gad(char* fname, bool csv) {
 		}
 	}
 	gad.csv = csv;
-
-    if( (fp = fopen(fname, "wt")) != NULL )
+	errno_t err = fopen_s(&fp, fname, "wt");
+    if( err == 0 )
     {
         gad.Write(fp);
         fclose(fp);
     } else {
-        sprintf(errmsg, "File (%s) creation error.", fname);
+        errmsg = "Cannot create file " + std::string(fname);
         return false;
     }
     return true;
@@ -334,53 +335,53 @@ bool CalcAOD::make_gad(char* fname, bool csv) {
 //                Zone1 Zone2 掛け率
 ////////////////////////////////////////////////////////////////////////////////
 bool CalcAOD::mult_pair(char* fname) {
-    FILE* fp;
-    char buf[256];
+    
+    std::string buf;
     int nTable = aod1.nTable;
     int nZone  = aod1.nZone;
     int iz, jz;
-    int length, max_t;
-    float rate, data;
+    int max_t;
+    double rate, data;
 
     if( aod1.nZone == 0 ) {
-		sprintf(errmsg, "No OD Matrix");
+		errmsg =  "No OD Matrix";
         return false;
     }
-
-    if( (fp = fopen(fname, "rt")) == NULL )
+	std::ifstream ifs(fname);
+	if( !ifs )
     {
-        sprintf(errmsg, "File (%s) was not found.", fname);
+        errmsg = "Cannot file " + std::string(fname);
         return false;
     }
 
     aodcopy();  //aod1の内容をaod3に複写する。
 
-    while( fgets(buf,256, fp) != NULL) {
-        length = strlen(buf);
-        if( length < 21 )
+    while( std::getline(ifs, buf) ) {
+//		std::stringstream line(buf);
+        if( buf.length() < 21 )
         {
-            sprintf(errmsg, "Input file format error (%s).",fname);
+            errmsg = "Format error in" + std::string(fname);
             return false;
         }
-        max_t = (length - 11 ) / 10 ;
-        iz = getbufInt(buf, 0, 5 );
-        jz = getbufInt(buf, 5, 5 );
+        max_t = (buf.length() - 11 ) / 10 ;
+        iz = std::stoi(buf.substr(0, 5 ));
+        jz = std::stoi(buf.substr(5, 5 ));
         if( iz <= 0 || iz > nZone || jz <= 0 || jz > nZone)
         {
-            sprintf(errmsg, "Input file format error (%s).",fname);
+            errmsg = "Format error in " + std::string(fname);
             return false;
         }
         if( max_t > nTable ) max_t = nTable;
         for(int t=0; t < max_t; t++)
         {
-            rate = getbufFlt(buf, 10 + 10*t, 10);
+            rate = std::stod(buf.substr(10 + 10*t, 10));
             data = aod1.getOD(t,iz-1, jz-1);
             data *= rate;
             aod3.setOD(t,iz-1,jz-1,data);
         }
     }
-    fclose(fp);
-    aod3.csv = aod1.csv; aod3.type = aod1.type;
+	ifs.close();
+	aod3.csv = aod1.csv; aod3.type = aod1.type;
     return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -392,7 +393,7 @@ void CalcAOD::aodcopy()
 
     int nTable = aod1.nTable;
     int nZone  = aod1.nZone;
-    float data;
+    double data;
 
     aod3.clear();
 
@@ -440,7 +441,7 @@ void CalcAOD::insert() {
 	if( aod1.nZone == 0 || aod2.nZone == 0 ) return;
 	if( aod1.nZone != aod2.nZone ) return;
 
-	float data;
+	double data;
 	int nTable = aod1.nTable + aod2.nTable;
 	int nZone = aod1.nZone;
 
@@ -468,7 +469,7 @@ void CalcAOD::insert() {
     aod3.csv = aod1.csv; aod3.type = aod1.type;
 }
 
-float CalcAOD::getOD(int n, int t, int i, int j) {
+double CalcAOD::getOD(int n, int t, int i, int j) {
 	if( t >= aod1.nTable || i >= aod1.nZone || j >= aod1.nZone) return 0;
 	if( n == 1 ) return aod1.getOD(t,i,j);
 	else if( n == 2 ) return aod2.getOD(t,i,j);
@@ -572,7 +573,7 @@ void CalcAOD::append() {
 
 void CalcAOD::show_total() {
 	for(int t=0; t < aod1.nTable; t++) {
-		float v = 0;
+		double v = 0;
 		for(int i=0; i < aod1.nZone; i++) {
 			for(int j=0; j < aod1.nZone; j++) {
 				v += aod1.getOD(t,i,j);
@@ -601,12 +602,12 @@ void CalcAOD::show_hs(int n) {
 }
 
 void CalcAOD::show_innertrip_rate() {
-	double** data;
+	std::vector<std::vector<double>> data;
 	double inner_total = 0;
 	double trip_total = 0;
 	int nCol = (aod1.nTable + 1) * 2 ;
-	data = new double*[nCol];
-	for(int i=0; i < nCol; i++) data[i] = new double[aod1.nZone+1];
+	data.resize(nCol);
+	for(int i=0; i < nCol; i++) data[i].resize(aod1.nZone+1);
 // 最後は合計欄
 
 	for(int t=0; t < aod1.nTable; t++) {
@@ -679,6 +680,5 @@ void CalcAOD::show_innertrip_rate() {
 		printf("%8.3f%8.3f", data[2*t][aod1.nZone], data[2*t+1][aod1.nZone]);
 	}
 	printf("\n");
-	for(int i=0; i < nCol; i++) delete data[i];
-	delete[] data;
+
 }

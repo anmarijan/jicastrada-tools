@@ -1,4 +1,3 @@
-#include <pch.h>
 #include <new>
 #include <assert.h>
 #include <stdio.h>
@@ -11,6 +10,7 @@
 #include <string>
 #include <boost/tokenizer.hpp>
 #define AOD_BAD_ALLOC 1
+typedef boost::tokenizer<boost::escaped_list_separator<char>> BOOST_TOKENIZER;
 /*----------------------------------------------------------------------------*/
 #include "StradaCmn.h"
 #include "StradaAOD.h"
@@ -233,6 +233,7 @@ void StradaAOD::Read(const char* fname){
 		if (buff[3] == ' ') version = 1;
 		else if (buff[3] == '2') version = 2;
 		else if (buff[3] == '3') version = 3;
+		else if (buff[3] == '4') version = 4;
 		else throw std::runtime_error("Version");
 
 		if( buff[4] == '*' ) csv = true;
@@ -253,18 +254,26 @@ void StradaAOD::Read(const char* fname){
 				boost::tokenizer<boost::escaped_list_separator<char> > tokens(buff);
 				boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
 				if ( it == tokens.end()) throw std::runtime_error("csv");
-				nZone = atoi(it->c_str());
+				nZone = std::stoi(*it);
 				++it; if (it == tokens.end()) throw std::runtime_error("csv");
-				nTable = atoi(it->c_str());
+				nTable = std::stoi(*it);
 				++it; if (it == tokens.end()) throw std::runtime_error("csv");
-				type = atoi(it->c_str());
+				type = std::stoi(*it);
 				++it; if (it == tokens.end()) throw std::runtime_error("csv");
 				if (nZone <= 0 || nTable <= 0 || type < 0 || type > 3)
 					throw std::runtime_error("Out of range");
 				allocTable(nTable, nZone);
 				int c = 0;
 				while (it != tokens.end()) {
-					tables[c++].name = (*it);
+					if (c >= nTable) break;
+					std::string tblname = trim(*it);
+					if (version == 4) {
+						size_t len = tblname.length();
+						tblname[0] = ' ';
+						tblname[len - 1] = ' ';
+					}
+					tables[c].name = trim(tblname);
+					c++;
 					++it;
 				}
 			} else {
@@ -336,8 +345,8 @@ void StradaAOD::Read(const char* fname){
 				for(int t=0; t < nTable; t++) {
 					for (int i = 0; i < nZone; i++) {
 						if( std::getline(ifs, buff).fail() ) throw std::runtime_error("read");
-						boost::tokenizer<> tokens(buff);
-						boost::tokenizer<>::iterator it = tokens.begin();
+						boost::tokenizer<boost::escaped_list_separator<char>> tokens(buff);
+						boost::tokenizer<boost::escaped_list_separator<char>>::iterator it = tokens.begin();
 						if (it == tokens.end()) throw std::runtime_error("csv01");
 
 						for(int j=0; j < nZone ; j++) {
@@ -351,8 +360,8 @@ void StradaAOD::Read(const char* fname){
 				int origin, dest;
 				double x;
 				while( std::getline(ifs, buff) ) {
-					boost::tokenizer<> tokens(buff);
-					boost::tokenizer<>::iterator it = tokens.begin();
+					boost::tokenizer<boost::escaped_list_separator<char>> tokens(buff);
+					boost::tokenizer<boost::escaped_list_separator<char>>::iterator it = tokens.begin();
 					if (it == tokens.end()) throw std::runtime_error("csv03");
 					origin = std::stoi(*it);
 					++it; if (it == tokens.end()) throw std::runtime_error("csv04");

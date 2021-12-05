@@ -1,14 +1,10 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+#include <iostream>
+#include <algorithm> 
 //---------------------------------------------------------------------------
 #include "calcaod.h"
-#include "tool.h"
-//---------------------------------------------------------------------------
-//各コマンドの長さは最大10文字とする。
-#define COM_MAX_LENGTH 10
 //---------------------------------------------------------------------------
 const char* commands[] ={ "PLUS","MINUS","SCALAR","MULTIOD" ,"ODMULT","FRATAR",
 					"GAD", "OD", "HS","TOTAL", "INSERT", "CLEAR", "EXTRACT","APPEND",
@@ -111,7 +107,7 @@ void usemessage(int n){
 int main(int argc, char* argv[])
 {
 	CalcAOD caod;
-	char sw[COM_MAX_LENGTH+1];
+	std::string sw;
 	double data;
 	int iflag;
 	int oc;	//出力AODの番号
@@ -125,14 +121,13 @@ int main(int argc, char* argv[])
 	if( argc < 3 ) {
 		usemessage(0);
 	}
-	strncpy(sw, argv[2],COM_MAX_LENGTH);
-	sw[COM_MAX_LENGTH] = '\0';
-	conv_upper(sw);
+	sw = std::string(argv[2]);
+	std::transform(sw.cbegin(), sw.cend(), sw.begin(), toupper);
 
 	if( argc == 3 && (argv[1][0] == '-' || argv[1][0] == '/') && (argv[1][1] == 'h' || argv[1][1] == '?')) {
 		int i ;
 		for(i=0; i < 17; i++ ) {
-			if ( strcmp(sw, commands[i]) == 0 ) break;
+			if ( commands[i] == sw ) break;
 		}
 		usemessage(i+1);
 	}
@@ -140,14 +135,14 @@ int main(int argc, char* argv[])
 	// file1は必ずAODで最初に読み込む
 	// 後のファイルはスイッチに応じて読み込む
 	if( caod.ReadStradaAOD(1, argv[1]) == false ) {
-		printf("%s\n", caod.errmsg);
+		std::cout << caod.errmsg << "\n";
 		exit(1);
 	}
 
-	if( strcmp(sw, "PLUS") == 0 ) {
+	if( sw == "PLUS" ) {
 		if( argc < 4 ) usemessage(1);
 		if( caod.ReadStradaAOD(2, argv[3]) == false ) {
-			printf("%s\n", caod.errmsg);
+			std::cout << caod.errmsg << "\n";
 			exit(1);
 		}
 		caod.plus();
@@ -156,10 +151,10 @@ int main(int argc, char* argv[])
 		caod.WriteStradaAOD(3,argv[oc]);
 		printf("%s\n", argv[oc]);
 
-	} else if( strcmp(sw, "MINUS") == 0 ) {
+	} else if( sw == "MINUS") {
 		if( argc < 4 ) usemessage(2);
 		if( caod.ReadStradaAOD(2, argv[3]) == false ) {
-			printf("%s\n", caod.errmsg);
+			std::cout << caod.errmsg << "\n";
 			exit(1);
 		}
 		caod.minus();
@@ -168,14 +163,14 @@ int main(int argc, char* argv[])
 		caod.WriteStradaAOD(3,argv[oc]);
 		printf("%s\n", argv[oc]);
 
-	} else if( strcmp(sw, "SCALAR") == 0 ) {
+	} else if( sw == "SCALAR" ) {
 		if( argc < 6 ) usemessage(3);
         iflag = atoi(argv[3])-1;
 		data = atof(argv[4]);
 		caod.scalar(iflag, data);
 		caod.WriteStradaAOD(3,argv[5]);
 
-	} else if( strcmp(sw, "MULTIOD") == 0 ) {
+	} else if( sw == "MULTIOD" ) {
 		if( argc < 4 ) usemessage(4);
 		data = 1;
 		if( argc > 4 ) {
@@ -193,23 +188,23 @@ int main(int argc, char* argv[])
 		}
 		printf("%10.0f\n", total/data);
 
-	} else if( strcmp(sw, "ODMULT") == 0 ) {
+	} else if( sw == "ODMULT" ) {
 		if( caod.mult_pair(argv[3]) ) {
 			caod.WriteStradaAOD(3,argv[4]);
 			printf("%s * %s = %s\n", argv[1], argv[3], argv[4]);
 		} else {
-			printf("%s\n", caod.errmsg );
+			std::cout << caod.errmsg << "\n";
 			exit(1);
 		}
-	} else if( strcmp(sw, "FRATAR") == 0 ) {    // Fratar法の計算
+	} else if( sw == "FRATAR" ) {    // Fratar法の計算
 		if( caod.calc_fratar(argv[3]) ) {
 			caod.WriteStradaAOD(3,argv[4]);
 			printf("%s\n", argv[4]);
 		} else {
-			printf("%s\n", caod.errmsg);
+			std::cout << caod.errmsg << "\n";
 			exit(1);
 		}
-	} else if( strcmp(sw, "GAD") == 0 ) {
+	} else if( sw == "GAD" ) {
 
 		if( argc == 5 && argv[4][0] == '-' && argv[4][1] == 'c' ) check = true;
 		else check = false;
@@ -217,15 +212,15 @@ int main(int argc, char* argv[])
 		if( caod.make_gad(argv[3], check) ) {
 			printf("The file (%s) was saved as a GAD file.\n", argv[3]);
 		} else {
-			printf("%s\n", caod.errmsg);
+			std::cout << caod.errmsg << "\n";
 			exit(1);
 		}
 
-	} else if( strcmp(sw, "INSERT") == 0 ) {
+	} else if( sw == "INSERT" ) {
 
 		if( argc < 4 ) usemessage(10);
 		if( caod.ReadStradaAOD(2, argv[3]) == false ) {
-			printf("%s\n", caod.errmsg);
+			std::cout << caod.errmsg << "\n";
 			exit(1);
 		}
 		caod.insert();
@@ -234,7 +229,7 @@ int main(int argc, char* argv[])
 		caod.WriteStradaAOD(3,argv[oc]);
 		printf("%s\n", argv[oc]);
 
-	} else if (strcmp(sw, "OD") == 0 ) {
+	} else if ( sw == "OD" ) {
 
 		if (argc != 6 ) usemessage(8);
 		int t = atoi(argv[3]) -1;
@@ -243,7 +238,7 @@ int main(int argc, char* argv[])
 		if(t < 0 || i < 0 || j < 0 ) usemessage(8);
 		printf("%f\n", caod.getOD(1,t,i,j));
 
-	} else if (strcmp(sw, "CLEAR") == 0 ) {
+	} else if ( sw == "CLEAR" ) {
 
 		if( argc < 4 ) usemessage(11);
 		int t = atoi(argv[3]) - 1;
@@ -251,22 +246,22 @@ int main(int argc, char* argv[])
 		if( argc == 4 ) oc = 1; else oc = 4;
 		caod.WriteStradaAOD(3, argv[oc]);
 
-	} else if (strcmp(sw, "HS") == 0 ) {
+	} else if ( sw == "HS" ) {
 		if( argc < 4 ) usemessage(9);
 		int t = atoi(argv[3]);
 		printf("ZONE: %d\n", t);
 		caod.show_hs(t-1);
-	} else if (strcmp(sw, "TOTAL") == 0 ) {
+	} else if ( sw == "TOTAL" ) {
 		caod.show_total();
 
-	} else if (strcmp(sw, "EXTRACT") == 0 ) {
+	} else if ( sw ==  "EXTRACT" ) {
 		if( argc < 5) usemessage(12);
 		int t = atoi(argv[3]) - 1;
 		if( argc == 6 && argv[5][0] == '-' && argv[5][1] == 'c' ) check = true;
 		else check = false;
 		caod.extract(t, check);
 		caod.WriteStradaAOD(3, argv[4]);
-	} else if (strcmp(sw, "APPEND") == 0 ) {
+	} else if ( sw == "APPEND") {
 		if(argc != 5) usemessage(13);
 		if( !caod.ReadStradaAOD(2, argv[3]) ) {
 			fprintf(stderr, "Cannot read %s\n", argv[3]);
@@ -274,29 +269,27 @@ int main(int argc, char* argv[])
 		}
 		caod.append();
 		caod.WriteStradaAOD(3, argv[4]);
-	} else if (strcmp(sw, "SUM") == 0 ) {
+	} else if (sw == "SUM" ) {
 		if( argc < 4 ) usemessage(14);
 		caod.sum();
 		caod.WriteStradaAOD(3,argv[3]);
-	} else if (strcmp(sw, "SET") == 0 ) {
+	} else if (sw == "SET") {
 		if( argc < 6 ) usemessage(15);
-		strncpy(sw, argv[3],COM_MAX_LENGTH);
-		sw[COM_MAX_LENGTH] = '\0';
-		conv_upper(sw);
-		if( strcmp(sw, "INNER") == 0 ) {
+		sw = argv[3];
+		std::transform(sw.cbegin(), sw.cend(), sw.begin(), toupper);
+		if( sw == "INNER" ) {
 			data = atof(argv[4]);
 			caod.zero_inner(data);
 			caod.WriteStradaAOD(3,argv[5]);
 		}
-	} else if (strcmp(sw, "INRATE")==0 ) {
+	} else if ( sw == "INRATE" ) {
 		caod.show_innertrip_rate();
-    } else if (strcmp(sw,"GROWTH")==0) {
+    } else if ( sw == "GROWTH" ) {
         int flag;
         if( argc < 5 ) usemessage(17);
-        strncpy(sw, argv[3], COM_MAX_LENGTH);
-        sw[COM_MAX_LENGTH] = '\0';
-        conv_upper(sw);
-        if( strcmp(sw, "GEN") == 0 ) flag = 0;
+        sw = argv[3];
+		std::transform(sw.cbegin(), sw.cend(), sw.begin(), toupper);
+        if( sw == "GEN" ) flag = 0;
         else flag = 1;
         if( caod.growth(argv[4],flag) == 0 ) {
             caod.WriteStradaAOD(3,argv[5]);

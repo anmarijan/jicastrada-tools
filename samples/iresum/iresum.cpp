@@ -4,10 +4,13 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 #include <stdexcept>
 #include <new>
-#include <float.h>
+//#include <float.h>
 //---------------------------------------------------------------------------
 #include "StradaIRE.h"
 #include "StradaPAR.h"
@@ -27,7 +30,7 @@ double free_speed[10];
 void usage() {
     puts("\nUsage: iresum ire_file [Options]");
 	puts("\nOutput: UP  = Vehilce-km  Down= Passenger-hours");
-	puts("\nire_file   File name of IRE file in JICA STRADA format");
+	puts("\nire_file   File name of IRE file");
 	puts("");
 	/*
 	puts("Options");
@@ -48,40 +51,49 @@ void usage() {
 
 void read_free_speed() {
 
-	FILE* fp;
-	int num;
-	double data;
-	char buff[50];
-
-	if ( (fp = fopen("fspeed.dat", "rt")) != 0) {
-
-		int ret ;
-		while( fgets(buff, 50, fp) ) {
-			ret = sscanf(buff,"%d%lf\n", &num, &data);
-			if( ret != 2 ) break;
-			if( num > 0 && num <= 10 && data > 0 && data < 151 ) {
-				free_speed[num-1] = data;
-			}
-			//fprintf(stderr, "%d %lf\n", num, data);
+	try {
+		std::ifstream ifs("fspeed.dat");
+		if (!ifs) {
+			std::cout << "Cannnot find free speed data.\n";
 		}
-		fclose(fp);
-	} else {
-		fprintf(stderr, "Cannnot find free speed data.\n");
+		else {
+			int num;
+			double data;
+			std::string buff;
+			while (std::getline(ifs, buff)) {
+				std::stringstream line(buff);
+				line >> num >> data;
+				if (num > 0 && num <= 10 && data > 0 && data < 151) {
+					free_speed[num - 1] = data;
+				}
+			}
+			ifs.close();
+		}
+	}
+	catch (const std::exception&) {
+		std::cout << "Read Error: fspeed.dat\n";
 	}
 }
 
-bool read_linkfile(const char* fname) {
-	FILE* fp;
-	char buff[256];
-	if( (fp = fopen(fname, "rt")) == NULL ) {
-		fprintf(stderr,"Cannot find file %s\n", fname);
+bool read_linkfile(const std::string& fname) {
+	try {
+		std::ifstream ifs(fname);
+		if (!ifs) {
+			std::cout << "Cannnot find " << fname << "\n";
+			return false;
+		}
+		else {
+			std::string buff;
+			while (std::getline(ifs, buff)) {
+				linklist.insert(buff);
+			}
+			ifs.close();
+		}
+	}
+	catch (const std::exception&) {
+		std::cout << "Read Error: fspeed.dat\n";
 		return false;
 	}
-	while (fgets(buff, 256, fp) != NULL){
-		buff[strlen(buff)-1] = '\0';
-		linklist.insert(buff);
-	}
-	fclose(fp);
 	return true;
 }
 
@@ -139,11 +151,14 @@ int main(int argc, char* argv[])
 		("tab,t", "Output separator is TAB")
 		("use-qv9,9", "Last speed = Vmax for QV=9")
 		("freespeed,s", "Use free speed")
-		("link-ignored,l", "-s parameter is ignored when link type is not 0");
+		("link-ignored,l", "-s parameter is ignored when link type is not 0")
+		("help,h", "Show this message");
 	variables_map vm;
 	store(parse_command_line(argc, argv, description), vm);
 	notify(vm);
-
+	if (vm.count("help")) {
+		std::cout << description << "\n";
+	}
 	if (vm.count("PAR")) {
 		std::string par_file = vm["PAR"].as<std::string>();
 		try {

@@ -4,6 +4,7 @@
 #include <time.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
+// For _s functions
 #define __STDC_WANT_LIB_EXT1__ 1
 #include "tool.h"
 #include "StradaCmn.h"
@@ -96,9 +97,11 @@ SLinkV2::SLinkV2(){
 	aFlag4[0] = aFlag4[1] = aFlag5[0] = aFlag5[1] = aFlag5[2] = ' ';
 	iX = iY = jX = jY = 0;
 	dummy = 0;
-	for(int i=0; i < 3; i++) {
-		dX[i] = dY[i] = 0;
-	}
+	//dX = nullptr;
+	//dY = nullptr;
+    for(int i=0; i < 3; i++) {
+        dX[i] = dY[i] = 0;
+    }
 	route = ' ';
 }
 SLinkV2& SLinkV2::operator=(const SLinkV2& obj){
@@ -122,8 +125,12 @@ SLinkV2& SLinkV2::operator=(const SLinkV2& obj){
 	iY = obj.iY;
 	jX = obj.jX;
 	jY = obj.jY;
+	//if (dX != nullptr) delete[] dX;
+	//if (dY != nullptr) delete[] dY;
 	dummy = obj.dummy;
-	for(int i=0; i < 3; i++) {
+	//dX = new float[dummy];
+	//dY = new float[dummy];
+	for(int i=0; i < dummy; i++) {
 		dX[i] = obj.dX[i];
 		dY[i] = obj.dY[i];
 	}
@@ -158,10 +165,31 @@ int SLinkV2::getFlag(int m){
 ////////////////////////////////////////////////////////////////////////////////
 // Clear dummy nodes 2011/10/22 18:07:01
 ////////////////////////////////////////////////////////////////////////////////
-void SLinkV2::clear_dummy_nodes() {
-	dummy = 0;
-	for(int i=0; i < 3; i++) {
-		dX[i] = dY[i] = 0;
+void SLinkV2::clear_dummy_nodes(int n) {
+	if (n <= 0) {
+		dummy = 0;
+		//if (dX != nullptr) delete[] dX; dX = nullptr;
+		//if (dY != nullptr) delete[] dY; dY = nullptr;
+	}
+	else {
+		if (n != dummy) {
+			dummy = n;
+			//delete[] dX; dX = new float[dummy];
+			//delete[] dY; dY = new float[dummy];
+		}
+		for (int i = 0; i < dummy; i++) {
+			dX[i] = 0;
+			dY[i] = 0;
+		}
+	}
+}
+////////////////////////////////////////////////////////////////////////////////
+// Add dummy nodes 2021/12/14
+////////////////////////////////////////////////////////////////////////////////
+void SLinkV2::add_dummy_node(float x, float y) {
+	if (dummy < 3) {
+		dX[dummy] = x; dY[dummy] = y;
+		dummy++;
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////

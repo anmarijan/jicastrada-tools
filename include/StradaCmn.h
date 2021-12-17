@@ -4,6 +4,7 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
 #include <string>
+#include <vector>
 //---------------------------------------------------------------------------
 #ifndef MAXPATH
 #define MAXPATH 260
@@ -17,6 +18,12 @@ int line_cord_check(FILE* fp);
 //---------------------------------------------------------------------------
 std::string trim(const std::string& str);
 //---------------------------------------------------------------------------
+class NodePoint {
+public:
+    float X = 0;
+    float Y = 0;
+};
+
 class SNodeV2 {
 public:
 	char	name[11];
@@ -71,17 +78,20 @@ public:
 	float	jX;
 	float	jY;
 	byte 	dummy;
-	float	dX[3];
-	float	dY[3];
-
+    float dX[3];
+    float dY[3];
+//	float*	dX;
+//	float*	dY;
+//    std::vector<NodePoint> dNodes;
 	char	route;	//flag of shortest path
-
+public:
 	SLinkV2();
 	SLinkV2& operator=(const SLinkV2& obj);
 	bool check_node(char* s_node, char* e_node);
 	int getFlag(int m);
 	bool setFlag(int m, int i);
-	void clear_dummy_nodes();
+	void clear_dummy_nodes(int n = 0);
+	void add_dummy_node(float x, float y);
 	void swap_nodes();
 };
 

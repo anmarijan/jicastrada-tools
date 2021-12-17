@@ -71,7 +71,7 @@ INTLinkV2& INTLinkV2::operator=(const INTLinkV2& obj) {
 	return (*this);
 }
 ////////////////////////////////////////////////////////////////////////////////
-//	Read 1 line (Ver2)
+//	Read 1 line (Ver2: Fixed length format)
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::Read(const char* link_str, size_t &pos){
 	std::string buff = link_str;
@@ -115,6 +115,7 @@ bool INTLinkV2::Read(const char* link_str, size_t &pos){
 		pos = 170;  jY = std::stof(buff.substr(170, 10));
 		pos = 180;  dummy = std::stoi(buff.substr(180, 5));
 		if (dummy < 0 || dummy > 3) return false;
+		clear_dummy_nodes(dummy);
 		if (dummy > 0) {
 			pos = 185;  dX[0] = std::stof(buff.substr(185, 10));
 			pos = 195;  dY[0] = std::stof(buff.substr(195, 10));
@@ -191,8 +192,9 @@ bool INTLinkV2::ReadCSV(char* link_str) {
 	iY = (float)atof(pdata[37]);
 	jX = (float)atof(pdata[38]);
 	jY = (float)atof(pdata[39]);
-	dummy = atoi(pdata[40]);
-	if (dummy > 0 && temp != 0) csv_parser(temp, pdata, dummy * 2, ',', '.');
+	int n = atoi(pdata[40]);
+	if (n > 0 && temp != 0) csv_parser(temp, pdata, n * 2, ',', '.');
+	clear_dummy_nodes(n);
 	for (int i = 0; i < dummy; i++) {
 		dX[i] = (float)atof(pdata[2 * i]);
 		dY[i] = (float)atof(pdata[2 * i + 1]);
@@ -235,9 +237,10 @@ bool INTLinkV2::ReadAsV4(char* buf) {
 	iY = (float)atof(pdata[41]);
 	jX = (float)atof(pdata[42]);
 	jY = (float)atof(pdata[43]);
-	dummy = atoi(pdata[44]);
+	int n = atoi(pdata[44]);
 
-	if( dummy > 0 && temp != 0 ) csv_parser(temp, pdata, dummy * 2, ',', '.' );
+	if( n > 0 && temp != 0 ) csv_parser(temp, pdata, n * 2, ',', '.' );
+	clear_dummy_nodes(n);
 	for(int i=0; i < dummy; i++) {
 		dX[i] = (float)atof(pdata[2*i]);
 		dY[i] = (float)atof(pdata[2*i+1]);

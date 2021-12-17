@@ -1,19 +1,20 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
 #include <stdexcept>
 #include <new>
 //---------------------------------------------------------------------------
-#include "StradaIRE.h"
-#include "tool.h"
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <regex>
+#include <unordered_map>
 #include <boost/program_options.hpp>
+//---------------------------------------------------------------------------
+#include "tool.h"
+#include "StradaIRE.h"
 //---------------------------------------------------------------------------
 int mode;
 int max_mode;
@@ -62,10 +63,15 @@ void read_linkfile(const char* fname, int &count) {
 		pos = 0;
 		while (isspace(buff[pos])) pos++;
 		if (buff[pos] == '#' || buff[pos] == '\0') continue;
-		std::string str = buff.substr(0, 10);
-		link_list[i].name = str;
-		str = buff.substr(10, 20);
-		link_list[i].remark = str;
+		// trim from StradaCmn.h
+		//std::string str = trim(buff);
+		std::string x;
+		std::string y;
+		std::stringstream line(buff);
+		line >> x >> y;
+		link_list[i].name = x;
+		//str = buff.substr(10, 20);
+		link_list[i].remark = y;
 		i++;
 	}
 	count = total;
@@ -103,10 +109,10 @@ void print_header(int sw) {
 
 	switch(sw) {
 		case 0:
-			printf("Both    A->B    B->A    ");
+			printf("     Both    A->B    B->A");
 			break;
 		case 1:
-			printf("A->B    B->A    ");
+			printf("     A->B    B->A");
 			break;
 		default:
 			break;
@@ -115,7 +121,8 @@ void print_header(int sw) {
 
 void display_link(IRELinkPtr link ) {
 
-	double vol1, vol2;
+	double vol1 = 0;
+	double vol2 = 0;
 
 	if( max_mode > 0 ) {
 		for(int i=0; i < max_mode; i++) {
@@ -181,7 +188,7 @@ void usage() {
 	puts("\t\t1    : start->end only");
 	puts("\t\t2    : end->start only");
 	puts("\t\ttotal: total");
-	puts("-l       Display length");
+	puts("-L       Display length");
 	puts("-s       Display speed");
 	puts("-H       Display header");
 	puts("-p       Use prefix");
@@ -190,12 +197,12 @@ void usage() {
 
 int main(int argc, char* argv[])
 {
-	using namespace boost::program_options;
+	namespace po = boost::program_options;
     if( argc < 4 || argv[2][0] != '-' || (argv[2][1] != 'f' && argv[2][1] != 'l') ) {
 		usage();
         exit(1);
     }
-
+	std::string ire_name;
     StradaIRE s_ire;
     IRELinkPtr link;
     std::unordered_map<std::string, IRELinkPtr> linkhash;
@@ -206,22 +213,32 @@ int main(int argc, char* argv[])
     bool header = false;
     bool disp   = false;
 
-	options_description description("Options");
+	po::options_description description("Options");
 	description.add_options()
-		("unit,u", value<std::string>(), "Specity the unit { pcu | veh | pax }")
+		("ire-file",po::value<std::string>(),"IRE file")
+		("file,f",po::value<std::string>(), "Name of the link list file")
+		("link,l",po::value<std::string>(), "Link name")
+		("unit,u", po::value<std::string>(), "Specity the unit { pcu | veh | pax }")
 		("kms,k", "Multiplied by link length")
-		("mode,m", value<int>()->default_value(0), "Specify the mode number")
-		("max_mode,M", value<int>(), "Specify the number of modes to be displayed form mode 1")
-		("direction,d", value<std::string>(), "Specify the direciton")
-		("length,l", "Display length")
+		("mode,m", po::value<int>()->default_value(0), "Specify the mode number")
+		("max_mode,M", po::value<int>(), "Specify the number of modes to be displayed form mode 1")
+		("direction,d", po::value<std::string>(), "Specify the direciton")
+		("length,L", "Display length")
 		("speed,s", "Display speed")
 		("header,H", "Display header")
 		("prefix,p", "Use prefix")
+		("regex,r", "Use regular expression (ignore -p option)")
 		("options,o", "Display options");
-	variables_map vm;
-	store(parse_command_line(argc, argv, description), vm);
-	notify(vm);
-
+	po::variables_map vm;
+	po::positional_options_description pod;
+	pod.add("ire-file",1);
+	try {
+		po::store(po::command_line_parser{argc, argv}.options(description).positional(pod).run(), vm);
+		po::notify(vm);
+	} catch (const std::exception& e) {
+		std::cout << e.what() << "\n";
+		exit(1);
+	}
 	std::string type_arg = "none";
 	std::string way_arg = "none";
 	char read_mode;
@@ -229,6 +246,7 @@ int main(int argc, char* argv[])
 	bool use_prefix = false;
 	bool disp_speed = false;
 	bool disp_length = false;
+	bool use_regex = false;
 	read_mode = argv[2][1];
 
 //初期化
@@ -239,6 +257,9 @@ int main(int argc, char* argv[])
 		max_vol1[i]=0;
 		max_vol2[i]=0;
 		max_total[i]=0;
+	}
+	if (vm.count("ire-file")) {
+		ire_name = vm["ire-file"].as<std::string>();
 	}
 	if (vm.count("unit")) {
 		type_arg = vm["unit"].as<std::string>();
@@ -270,6 +291,9 @@ int main(int argc, char* argv[])
 	if (vm.count("prefix")) {
 		use_prefix = true;
 	}
+	if( vm.count("regex")) {
+		use_regex = true;
+	}
 	if (vm.count("kms")) {
 		kms = true;
 	}
@@ -296,7 +320,6 @@ int main(int argc, char* argv[])
 		fprintf(stderr,"Wrong argument for -d.\n");
 		exit(1);
 	}
-
     try {
         s_ire.Read(argv[1]);
     } catch (std::runtime_error& ) {
@@ -359,7 +382,6 @@ int main(int argc, char* argv[])
 		}
 		else if(mode == 0 ) printf("Total   A->B    B->A    \n");
 	}
-
 	if( read_mode == 'f' ) {
 		//ファイルからリストを読み込む場合
 		read_linkfile(argv[3], nRoad );
@@ -394,7 +416,20 @@ int main(int argc, char* argv[])
         }
 	} else {
 		//リンクを一つだけ指定する場合
-		if( use_prefix) {
+		if ( use_regex) {
+			std::regex reg(argv[3]);
+			for(int i=0; i < s_ire.nLink; i++) {
+				link = s_ire.getLink(i);
+				std::string link_name(link->name);
+				if( std::regex_match(link_name, reg) ) {
+					printf("%-10s", link->name);
+					if( disp_length) printf("%8.2f", link->length);
+					if( disp_speed ) printf("%8.2f%8.2f", link->result[0].ltSp, link->result[1].ltSp);
+					display_link(link);
+					puts("");
+				}
+			}
+		} else if( use_prefix) {
 			size_t pre_len = strlen(argv[3]);
 			for(int i=0; i < s_ire.nLink; i++) {
 				link = s_ire.getLink(i);

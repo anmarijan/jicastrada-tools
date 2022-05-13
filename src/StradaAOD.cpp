@@ -160,15 +160,15 @@ void StradaAOD::setTableName(int tbl, const char* str){
 ////////////////////////////////////////////////////////////////////////////////
 int StradaAOD::FTFormat(char* str)
 {
-	int len = strlen(str);
+	size_t len = strlen(str);
 
-	int counter=0;
+	size_t counter=0;
 	while( str[counter] != '(' ) {
 		counter++;
 		if ( counter > len - 1) return (-1);
 	}
 	counter++;
-	int st = counter;
+	size_t st = counter;
 	while(true) {
 		if( !isdigit(str[counter])) break;
 		counter++;

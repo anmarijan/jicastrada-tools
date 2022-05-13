@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 		printf("Success!");
 	}catch (std::exception& e ) {
 		printf("%s\n", e.what());
-		printf("%s\n", ire.msg);
+		printf("%s\n", ire.msg.c_str());
 		return 0;
 	}
     return 1;

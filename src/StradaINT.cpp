@@ -204,9 +204,87 @@ bool INTLinkV2::ReadCSV(char* link_str) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//	Read a line in Ver4 format
+//	Read a line in Ver4 format (No trim required)
 ////////////////////////////////////////////////////////////////////////////////
 bool INTLinkV2::ReadAsV4(char* buf) {
+	std::string str = buf;
+	boost::tokenizer< boost::escaped_list_separator<char> > tok(str);
+	boost::tokenizer< boost::escaped_list_separator<char> >::iterator it = tok.begin();
+	int n = 1;
+	try {
+		if (it == tok.end()) throw n;
+		strncpy_s(name, sizeof(name), (*it).c_str(), sizeof(name) - 1);
+		n++; ++it; if (it == tok.end()) throw n;
+		strncpy_s(sNode, sizeof(sNode), (*it).c_str(), sizeof(sNode) - 1);
+		n++; ++it; if (it == tok.end()) throw n;
+		strncpy_s(eNode, sizeof(eNode), (*it).c_str(), sizeof(eNode) - 1);
+		n++; ++it; if (it == tok.end()) throw n;
+		length = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		Vmax = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		Capa = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		QV = std::stoi(*it);
+		for (int i = 0; i < 10; i++) {
+			n++; ++it; if (it == tok.end()) throw n;
+			fare[i] = std::stof(*it);
+		}
+		for (int i = 0; i < 10; i++) {
+			n++; ++it; if (it == tok.end()) throw n;
+			ways[i] = (*it)[0];
+		}
+		n++; ++it; if (it == tok.end()) throw n;
+		linktype = (*it)[0];
+		n++; ++it; if (it == tok.end()) throw n;
+		if( (*it)[0] == '0' ) evaluation = true; else evaluation = false;
+		n++; ++it; if (it == tok.end()) throw n;
+		display = (*it)[0];
+		n++; ++it; if (it == tok.end()) throw n;
+		aFlag1 = (*it)[0];
+		n++; ++it; if (it == tok.end()) throw n;
+		nFlag2 = std::stoi(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		nFlag3 = std::stoi(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		for (size_t i = 0; i < (*it).size() && i < 2; i++) aFlag4[i] = (*it)[i];
+		n++; ++it; if (it == tok.end()) throw n;
+		for (size_t i = 0; i < (*it).size() && i < 3; i++) aFlag5[i] = (*it)[i];
+		// Flag 6,7,8,9
+		for (int i = 0; i < 4; i++) {
+			n++; ++it; if (it == tok.end()) throw n;
+		}
+		n++; ++it; if (it == tok.end()) throw n;
+		color = (*it)[0];
+		n++; ++it; if (it == tok.end()) throw n;
+		iX = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		iY = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		jX = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		jY = std::stof(*it);
+		n++; ++it; if (it == tok.end()) throw n;
+		int num_dummy = std::stoi(*it);
+		if (num_dummy > 0) {
+			clear_dummy_nodes(num_dummy);
+			for (int i = 0; i < dummy; i++) {
+				n++; ++it; if (it == tok.end()) throw n;
+				dX[i] = std::stof(*it);
+				n++; ++it; if (it == tok.end()) throw n;
+				dY[i] = std::stof(*it);
+			}
+		}
+	}
+	catch (int e) {
+		printf("E: %d\n", e);
+		return false;
+	}
+	catch (const std::exception& e) {
+		printf("%s\n", e.what());
+		return false;
+	}
+	/*
     char* pdata[46];
 	for (int i = 0; i < 46; i++) pdata[i] = nullptr;
 	char* temp = csv_parser(buf, pdata, 45, ',', '.'); //destroy buf
@@ -245,6 +323,7 @@ bool INTLinkV2::ReadAsV4(char* buf) {
 		dX[i] = (float)atof(pdata[2*i]);
 		dY[i] = (float)atof(pdata[2*i+1]);
 	}
+	*/
 	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -586,6 +665,7 @@ void StradaINT::Write(FILE* fp){
 		node_table.insert(link->eNode);
 	}
 	nNode = node_table.size();
+	nLink = links.size();
     if( version == 2 ) {
         fprintf(fp,"INT2");
         if ( csv  ) fprintf(fp, "* ");

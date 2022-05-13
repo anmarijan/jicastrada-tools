@@ -7,6 +7,8 @@
 #include <string>
 #include <fstream>
 #include <boost/tokenizer.hpp>
+#include <boost/algorithm/string/classification.hpp> // is_any_of
+#include <boost/algorithm/string/split.hpp>
 //---------------------------------------------------------------------------
 #include "StradaCmn.h"
 #include "StradaPAR.h"
@@ -357,6 +359,222 @@ void StradaPAR::write_range(FILE* fp){
 		for(int i=0; i < 5; i++) fprintf(fp, "%5.1f", trip_range[i]);
 		fprintf(fp,"\n");
 	}
+}
+////////////////////////////////////////////////////////////////////////////////
+// Version 4 format
+////////////////////////////////////////////////////////////////////////////////
+bool StradaPAR::ReadV4(const char* fname, int& line_number) {
+	line_number = 0;
+	std::vector<std::string> params;
+	std::string buff;
+	std::vector<std::string> result;
+	std::ifstream ifs(fname);
+	if (!ifs) return false;
+	while (std::getline(ifs, buff)) {
+		params.push_back(buff);
+	}
+	ifs.close();
+	try {
+		line_number = 1;
+		if (params[0].length() < 6) return false;
+		if (params[0].substr(0, 5) != "PAR4*") return false;
+		line_number++;
+		boost::algorithm::split(result, params[1], boost::is_any_of(","));
+		if (result.size() < 4) return false;
+		nLink = std::stoi(result[0]);
+		nNode = std::stoi(result[1]);
+		nZone = std::stoi(result[2]);
+		nMode = std::stoi(result[3]);
+		line_number++;
+		boost::algorithm::split(result,params[2], boost::is_any_of(","));
+		if (result.size() < 20) return false;
+		bSearchByMode = (result[0] == "1") ? true : false;
+		bCountByMode = (result[1] == "1") ? true : false;
+		bCalcOdDetail = (result[2] == "1") ? true : false;
+		bAnalyzeTurn = (result[3] == "1") ? true : false;
+		if (result[4] == "") ZoneImpedance = '0'; else  ZoneImpedance = result[4][0];
+		if (result[5] == "") ConvertType = '0'; else ConvertType = result[5][0];
+		if (result[6] == "") LinkCostType = '0'; else LinkCostType = result[6][0];
+		bParam = (result[7] == "1") ? true : false;
+		bTurnControl = (result[8] == "1") ? true : false;
+		bRouteInformation = (result[9] == "1") ? true : false;
+		bTripRank = (result[10] == "1") ? true : false;
+		bDivideCapacity = (result[11] == "1") ? true : false;
+		bPreLoad = (result[12] == "1") ? true : false;
+		bMinRoute = (result[13] == "1") ? true : false;
+		if (result[14] == "") EquibriumType = '0'; else EquibriumType = result[14][0];
+		MaxIteration = std::stoi(result[15]); if (MaxIteration == 0) MaxIteration = 999;
+		Error = std::stof(result[16]); if (Error == 0) Error = 0.005f;
+		Damp = std::stof(result[17]); if (Damp == 0) Damp = 1.0;
+		unit_hours = std::stoi(result[18]);
+		time_units = std::stoi(result[19]);
+		if (EquibriumType == '0') {
+			if (result.size() < 30) return false;
+			for (int i = 0; i < 10; i++) assign_rate[i] = std::stoi(result[20 + i]);
+			for (size_t i = 0; i < 9; i++) {
+				if (result.size() < 41 + i * 11) break;
+				int mode = std::stoi(result[30 + 11 * i]);
+				if (mode < 1 || mode > 10) return false;
+				rate_by_mode[mode - 1] = true;
+				for (size_t j = 0; j < 10; j++) {
+					arate_mode[mode - 1][j] = std::stoi(result[31 + 11 * i + j]);
+				}
+			}
+		}
+		centroids.clear();
+		centroids.resize(nZone);
+		int n = nZone / 10;
+		int m = nZone % 10;
+		for (int i = 0; i < n; i++) {
+			line_number++;
+			boost::algorithm::split(result, params[3+i], boost::is_any_of(","));
+			if (result.size() < 10) return false;
+			for (int j = 0; j < 10; j++) {
+				int idx = 10 * i + j;
+				strncpy_s(centroids[idx].name, 11, result[j].c_str(), 10);
+				centroids[idx].name[10] = '\0';
+			}
+		}
+		if (m > 0) {
+			line_number++;
+			boost::algorithm::split(result, params[3+n], boost::is_any_of(","));
+			if (result.size() < (size_t)m) return false;
+			for (int i = 0; i < m; i++) {
+				int idx = 10 * n + i;
+				strncpy_s(centroids[idx].name, 11, result[i].c_str(), 10);
+				centroids[idx].name[10] = '\0';
+			}
+		}
+		line_number++;
+		boost::algorithm::split(result, params[3+n+m], boost::is_any_of(","));
+		if (result.size() < 2 || result[0] != "Z" ) return false;
+		// int num = std::stoi(result[1]);
+		for (size_t i = 2; i < result.size(); i++ ) {
+			if (result[i] != "") {
+				int z = std::stoi(result[i]);
+				if (z < 1 || z > nZone) return false;
+				centroids[z - 1].flag = true;
+			}
+		}
+		line_number++;
+		boost::algorithm::split(result, params[4+n+m], boost::is_any_of(","));
+		if (result.size() < 23) return false;
+		base_mode = std::stoi(result[0]);
+		size_t ip_mode = (result.size() - 23) / 2;
+		if (ip_mode > 10) ip_mode = 10;
+		for (size_t i = 0; i < ip_mode; i++) {
+			time_value[i] = std::stof(result[1 + i]);
+			sp_modify[i] = std::stof(result[11 + i]);
+			PCU[i] = std::stof(result[21 + 2 * i]);
+			APC[i] = std::stof(result[21 + 2 * i + 1]);
+		}
+		size_t base = 5 + n + m;
+		// A:
+		size_t target = 0;
+		for (size_t L = base; L < params.size(); L++) {
+			if (params[L] != "" && params[L][0] == 'A') {
+				target = L;
+				break;
+			}
+		}
+		if (target > 0) {
+			line_number = (int)target;
+			boost::algorithm::split(result, params[target], boost::is_any_of(","));
+			if (result.size() < 2) return false;
+			nParam = std::stoi(result[1]);
+			if (nParam <= 0 || nParam > 99) return false;
+			for (int i = 0; i < 99; i++) qvdata[i].reset();
+			int c = 0;
+			for (size_t L = target + 1; L < params.size(); L++) {
+				if (params[L] == "" || params[L][0] != 'A') break;
+				line_number = (int)L;
+				boost::algorithm::split(result, params[L], boost::is_any_of(","));
+				if (result.size() < 11) return false;
+				int code = std::stoi(result[1]);
+				float v1 = std::stof(result[2]);
+				float q1 = std::stof(result[3]);
+				float v2 = std::stof(result[4]);
+				float q2 = std::stof(result[5]);
+				float v3 = std::stof(result[6]);
+				float q3 = std::stof(result[7]);
+				float v4 = std::stof(result[8]);
+				float q4 = std::stof(result[9]);
+				float delay = std::stof(result[10]);
+				qvdata[code].reset(new QV_PARAM());
+				qvdata[code]->v1 = v1; qvdata[code]->v2 = v2; qvdata[code]->v3 = v3; qvdata[code]->v4 = v4;
+				qvdata[code]->q1 = q1; qvdata[code]->q2 = q2; qvdata[code]->q3 = q3; qvdata[code]->q4 = q4;
+				qvdata[code]->delay = delay;
+				c++;
+			}
+		}
+		// B:
+		target = 0;
+		for (size_t L = base; L < params.size(); L++) {
+			if (params[L] != "" && params[L][0] == 'B') {
+				target = L;
+				break;
+			}
+		}
+		if (target > 0) {
+			line_number = (int)target;
+			boost::algorithm::split(result, params[target], boost::is_any_of(","));
+			nTurn = std::stoi(result[1]);
+			Turns.clear();
+			TurnControl turn;
+			size_t M = target+1+(size_t)nTurn;
+			for (size_t L = target+1; L < M; L++) {
+				line_number++;
+				boost::algorithm::split(result, params[L], boost::is_any_of(","));
+				if (result.size() < 5 || result[0] != "B") return false;
+				strncpy_s(turn.FromNode, sizeof(turn.FromNode), result[1].c_str(), 10); turn.FromNode[10] = 0;
+				strncpy_s(turn.TurnNode, sizeof(turn.TurnNode), result[2].c_str(), 10); turn.TurnNode[10] = 0;
+				strncpy_s(turn.ToNode, sizeof(turn.ToNode), result[3].c_str(), 10); turn.ToNode[10] = 0;
+				turn.penalty = std::stof(result[4]);
+				Turns.push_back(turn);
+			}
+		}
+		// C:
+		target = 0;
+		for (size_t L = base; L < params.size(); L++) {
+			if (params[L] != "" && params[L][0] == 'C') {
+				target = L;
+				break;
+			}
+		}
+		if (target > 0) {
+			line_number = (int)target;
+			boost::algorithm::split(result, params[target], boost::is_any_of(","));
+			nDirection = std::stoi(result[1]);
+			if (nDirection < 0 || nDirection > nNode) return false;
+			d_nodes.clear();
+			int an = nDirection / 15;
+			int am = nDirection % 15;
+			size_t M = target + 1 + (size_t)an;
+			for (size_t L = target + 1; L < M; L++) {
+				line_number++;
+				boost::algorithm::split(result, params[L], boost::is_any_of(","));
+				if (result.size() < 16 || result[0] != "C") return false;
+				str10 dn;
+				for (int k = 0; k < 15; k++) {
+					strncpy_s(dn.name, sizeof(dn.name), result[1 + k].c_str(), 10); dn.name[10] = '\0';
+					d_nodes.push_back(dn);
+				}
+			}
+			line_number++;
+			boost::algorithm::split(result, params[M], boost::is_any_of(","));
+			if (result.size() < (size_t)am || result[0] != "C") return false;
+			str10 dn;
+			for (int k = 0; k < am; k++) {
+				strncpy_s(dn.name, sizeof(dn.name), result[1 + k].c_str(), 10); dn.name[10] = '\0';
+				d_nodes.push_back(dn);
+			}
+		}
+	}
+	catch (const std::exception& e) {
+		printf("%s\n",e.what());
+		return false;
+	}
+	return true;
 }
 ////////////////////////////////////////////////////////////////////////////////
 // CSV: 

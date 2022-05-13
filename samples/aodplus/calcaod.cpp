@@ -1,5 +1,6 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
+#include <cstring> // for strlen
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -158,7 +159,7 @@ int CalcAOD::growth(const char* fname, int flag) {
     count = 0;
     while( fgets(buff, 256, fp) ) {
         if( count == nZone ) break;
-        buff[strlen(buff)-1] = '\0';
+        buff[std::strlen(buff)-1] = '\0';
         vec[count] = atof(buff);
         count++;
     }

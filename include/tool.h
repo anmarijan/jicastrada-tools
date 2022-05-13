@@ -16,10 +16,10 @@ float getbufFlt(const char* buf, int p, int c);
 double getbufDbl(char* buf, int p, int c);
 bool repstrrtn(char* buf, int c);	// replace RET(\n) with NULL
 void chomp(char* buf);
-int maxlinelen(FILE* fp, char* buffer, int size); // Calculate the max numbers of text file
+size_t maxlinelen(FILE* fp, char* buffer, int size); // Calculate the max numbers of text file
 char* float_print(char* buf, size_t n, float x);// Number of significant digits = 4 and width = 5
-char* fixfloat(char* buff, double value, int width, int ndig = 7);
-char* fixfloat(char* buff, float value, int width, int ndig=7);
+char* fixfloat(char* buff, double value, size_t width, int ndig = 7);
+char* fixfloat(char* buff, float value, size_t width, int ndig=7);
 bool getconfig(const char* fname, char* key, char* dst, size_t n);
 char* strnstr(char* target, char* s, int size);
 

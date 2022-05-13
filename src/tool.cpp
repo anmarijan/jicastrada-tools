@@ -80,8 +80,8 @@ char* getKey(char* key,size_t n, const char* s1, const char* s2){
 //
 //------------------------------------------------------------------------------
 char* trim(char* str) {
-	int s , e;
-	int len, i;
+	size_t s , e;
+	size_t len, i;
 	len = strlen(str);
 
 	for( s = 0; s < len; s++) {
@@ -176,15 +176,15 @@ bool repstrrtn(char* buf, int c){
 // change the last char to '\0'
 //------------------------------------------------------------------------------
 void chomp(char* buf) {
-	int len = strlen(buf);
+	size_t len = strlen(buf);
 	if( len > 0 ) buf[len-1] = '\0';
 }
 //------------------------------------------------------------------------------
 // calculate the max length of line
 //------------------------------------------------------------------------------
-int maxlinelen(FILE* fp, char* buffer, int size) {
-	int slen;
-	int maxlen = 0;
+size_t maxlinelen(FILE* fp, char* buffer, int size) {
+	size_t slen;
+	size_t maxlen = 0;
 	if (buffer == NULL) return 0;
 	while ( fgets(buffer, size, fp) != NULL ) {
 		slen = strlen(buffer);
@@ -213,23 +213,23 @@ char* float_print(char* buf, size_t n, float x){
 //------------------------------------------------------------------------------
 // Float to string with fixed width
 //------------------------------------------------------------------------------
-char* fixfloat(char* buff, float value, int width, int ndig) {
+char* fixfloat(char* buff, float value, size_t width, int ndig) {
 	double d = static_cast<double>(value);
 	return fixfloat(buff, d, width, ndig);
 }
 
-char* fixfloat(char* buff, double value, int width, int ndig) {
+char* fixfloat(char* buff, double value, size_t width, int ndig) {
     char value_str[256];
 	for(int i=0; i < 16; i++) value_str[i] = '0';
 	double c_num = 10 * width - 1;
     if( value > c_num) {
-        for(int i=0; i < width; i++) buff[i] = '9';
+        for(size_t i=0; i < width; i++) buff[i] = '9';
 		buff[width] = '\0';
         return buff;
     }
     snprintf(value_str, sizeof(value_str), "%.8f", value);
-    int len = strlen(value_str);
-    for(int i = len; i < width; i++) value_str[i] = ' ';
+    size_t len = strlen(value_str);
+    for(size_t i = len; i < width; i++) value_str[i] = ' ';
     value_str[width] = '\0';
     if( value_str[width-1] == '.' ) value_str[width-1] = ' ';
     strcpy_s(buff, width+1, value_str);

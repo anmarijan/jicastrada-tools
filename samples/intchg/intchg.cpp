@@ -1,10 +1,11 @@
 //---------------------------------------------------------------------------
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdexcept>
 #include <string>
+//#include <iostream>
+#include <fstream>
 #include <boost/regex.hpp>
 #include <list>
 #include <unordered_map>
@@ -28,49 +29,49 @@ void change_link(LinkPtr link, char* command, char* value) {
 	int len;
 
 	if( strcmp(command, "vmax") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		if( fx >= 0 ) link->Vmax = fx;
 	} else if( strcmp(command, "length") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		if( fx >= 0 ) link->length = fx;
 	} else if( strcmp(command, "capacity") == 0 ) {
-		ix = atoi(value);
-		if( ix >= 0 ) link->Capa = ix;
+		fx = (float)atof(value);
+		if( fx >= 0 ) link->Capa = fx;
 	} else if( strcmp(command, "QV") == 0 ) {
 		ix = atoi(value);
 		if( ix >= 0 ) link->QV = ix;
 	} else if( strcmp(command, "fare0") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[0] = fx;
 	} else if(strcmp(command, "fare1") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[1] = fx;
 	} else if(strcmp(command, "fare2") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[2] = fx;
 	} else if(strcmp(command, "fare3") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[3] = fx;
 	} else if(strcmp(command, "fare4") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[4] = fx;
 	} else if( strcmp(command, "fare5") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[5] = fx;
 	} else if(strcmp(command, "fare6") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[6] = fx;
 	} else if(strcmp(command, "fare7") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[7] = fx;
 	} else if(strcmp(command, "fare8") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[8] = fx;
 	} else if(strcmp(command, "fare9") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		link->fare[9] = fx;
 	} else if(strcmp(command, "farea") == 0 ) {
-		fx = atof(value);
+		fx = (float)atof(value);
 		for(int i=0; i < 10; i++) link->fare[i] = fx;
 	} else if(strcmp(command, "way0") == 0 ) {
 		ch = value[0];
@@ -159,9 +160,9 @@ void change_link(LinkPtr link, char* command, char* value) {
 
 }
 
-char* getdbstr(char* source, char* dst, int maxlen) {
+const char* getdbstr(const char* source, char* dst, int maxlen) {
 
-    char* p = source;
+    const char* p = source;
     char* q = dst;
     int c;
 
@@ -212,11 +213,6 @@ char* getdbstr(char* source, char* dst, int maxlen) {
 
 int main(int argc, char* argv[])
 {
-    FILE* fp;
-    StradaINT s_int;
-    std::unordered_map<std::string, LinkPtr> linkhash;
-	bool use_prefix = false;
-
     if( argc < 4 ) {
         printf("\nUSAGE: intchg int_file param_file output_file [p]\n");
 		printf("[param_file]: C style scanf format\n");
@@ -234,10 +230,13 @@ int main(int argc, char* argv[])
         printf("        disp: display flag (0-9)\n");
 		printf("[Option]\n");
 		printf("p           : Use regular expression\n");
-        exit(1);
+        return 1;
     }
-    char buf[2048];
-    char name[100];
+	StradaINT s_int;
+	std::unordered_map<std::string, LinkPtr> linkhash;
+	bool use_prefix = false;
+
+	char name[100];
     char command[100];
     char value[100];
 	int len;
@@ -262,106 +261,113 @@ int main(int argc, char* argv[])
 	if( argv[4] && argv[4][0] == 'p' ) {
 		use_prefix = true;
 	}
-    if( (fp = fopen(argv[2], "rt")) != NULL )
-    {
-        while( fgets(buf, 2048, fp) != NULL ) {
-			data_valid = true;
-            buf[strlen(buf)-1]=0;
-            trim(buf);
-            char* str = buf;
-            if( comment_line(buf) ) continue;
-            //sn = sscanf(buf,"%s%s%s", name, command, value );
-            sn = 3;
-            str = getdbstr(str, name, 100);
-            if(name[0]==0 || str == 0 ) {
+	std::ifstream ifs(argv[2]);
+	if (!ifs) {
+		printf("Cannot open %s.\n", argv[2]);
+		return 1;
+	}
+	std::string buff;
+    while( std::getline(ifs, buff) ) {
+		if (comment_line(buff.c_str())) continue;
+		data_valid = true;
+        const char* str = buff.c_str();
+        //sn = sscanf(buf,"%s%s%s", name, command, value );
+        sn = 3;
+        str = getdbstr(str, name, 100);
+        if(name[0]==0 || str == 0 ) {
 //                printf("[%s][%s]", name, str);
 //                fprintf(stderr, "name error\n");
-                continue;
-            }
+            continue;
+        }
 //            printf("name=%s\n", name);
-            str = getdbstr(str, command,100);
-            if( command[0] ==0 ) {
+        str = getdbstr(str, command,100);
+        if( command[0] ==0 ) {
 //                fprintf(stderr, "command error\n");
-                continue;
-            }
+            continue;
+        }
 //            printf("command=%s\n", command);
 
-            if( str == 0 ) {
-                sn = 2;
-            } else {
-                str = getdbstr(str, value,100);
-                if( value[0] == 0 ) sn = 2;
-            }
+        if( str == 0 ) {
+            sn = 2;
+        } else {
+            str = getdbstr(str, value,100);
+            if( value[0] == 0 ) sn = 2;
+        }
 //            printf("value=%s\n", value);
 
-			if( use_prefix==false && strlen(name) > 10 ) {
-				fprintf(stderr, "Name length exceeds 10.\n");
-				continue;
-			}
-			if( sn == 2 ) {
-				if( strcmp(command, "drop")==0 ) {
-					std::list<LinkPtr>::iterator it = s_int.links.begin();
-					while(it != s_int.links.end()) {
-						LinkPtr link = (*it);
-						if( strcmp(link->name, name) == 0 ) {
-							linkhash.erase(link->name);
-							it = s_int.links.erase(it);
-						} else ++it;
-					}
-					continue;
-				} else {
-					data_valid = false;
-				}
-			} else if (sn != 3) data_valid = false;
-			if( data_valid == false ) continue;
-
-			if( use_prefix ) {
-				for(auto& link : s_int.links) {
-                    boost::regex reg(name);
-                    std::string str = link->name;
-                    if( boost::regex_match(str, reg)) {
-                            change_link(link, command, value);
-                    }
-/*
-					len = strlen(name);
-
-					if( strncmp(link->name, name, len) == 0 ) {
-						change_link(link, command, value);
-                    }
-*/
-				}
-			} else {
-				if( name[strlen(name)-1] == '*' ) {  //prefix
-					len = strlen(name) -1 ;
-					for(auto& link : s_int.links ) {
-						if (len == 0 ){
-							change_link(link, command, value);
-						} else if( strncmp(link->name, name, len) == 0 ) {
-							change_link(link, command, value);
+		if( use_prefix==false && strlen(name) > 10 ) {
+			fprintf(stderr, "Name length exceeds 10.\n");
+			continue;
+		}
+		if( sn == 2 ) {
+			if( strcmp(command, "drop")==0 ) {
+				std::list<LinkPtr>::iterator it = s_int.links.begin();
+				while(it != s_int.links.end()) {
+					bool change_link = false;
+					LinkPtr link = (*it);
+					if (use_prefix) {
+						boost::regex reg(name);
+						std::string str = link->name;
+						if (boost::regex_match(str, reg)) {
+							change_link = true;
 						}
 					}
-				} else {
-					auto it = linkhash.find(name);
-					if( it != linkhash.end() ) {
-						change_link(it->second, command, value);
+					else if (strcmp(link->name, name) == 0) {
+						change_link = true;
+					}
+					if( change_link ) {
+						linkhash.erase(link->name);
+						it = s_int.links.erase(it);
+					} else ++it;
+				}
+				continue;
+			} else {
+				data_valid = false;
+			}
+		} else if (sn != 3) data_valid = false;
+		if( data_valid == false ) continue;
+
+		if( use_prefix ) {
+			for(auto& link : s_int.links) {
+                boost::regex reg(name);
+                std::string str = link->name;
+                if( boost::regex_match(str, reg)) {
+                        change_link(link, command, value);
+                }
+/*
+				len = strlen(name);
+
+				if( strncmp(link->name, name, len) == 0 ) {
+					change_link(link, command, value);
+                }
+*/
+			}
+		} else {
+			if( name[strlen(name)-1] == '*' ) {  //prefix
+				len = strlen(name) -1 ;
+				for(auto& link : s_int.links ) {
+					if (len == 0 ){
+						change_link(link, command, value);
+					} else if( strncmp(link->name, name, len) == 0 ) {
+						change_link(link, command, value);
 					}
 				}
+			} else {
+				auto it = linkhash.find(name);
+				if( it != linkhash.end() ) {
+					change_link(it->second, command, value);
+				}
 			}
-        }
-        fclose(fp);
-        if( (fp = fopen(argv[3], "wt")) != NULL )
-        {
-            s_int.Write(fp);
-            fclose(fp);
-        } else {
-            printf("\nFile creat error - %s\n", argv[2]);
-            exit(1);
-        }
-
-    } else {
-        printf("\nFile open error - %s\n", argv[2]);
-        exit(1);
+		}
     }
+    ifs.close();
+	try {
+		s_int.Write(argv[3]);
+	}
+	catch (const std::runtime_error& e) {
+		printf("Error: %s\n", e.what());
+		return 1;
+	}
     return 0;
 }
 //---------------------------------------------------------------------------

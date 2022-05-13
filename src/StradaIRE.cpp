@@ -304,6 +304,80 @@ int IRELinkV2::Read(const char* buf){
 // SPACEs are trimmed
 //---------------------------------------------------------------------------
 void IRELinkV2::ReadCSV(const char* buf){
+	int n = 0;
+	try {
+		std::string str;
+		std::string line = buf;
+		boost::tokenizer<boost::escaped_list_separator<char> > tokens(line);
+		boost::tokenizer<boost::escaped_list_separator<char> >::iterator it = tokens.begin();
+		if (it == tokens.end()) throw n;
+		str = trim(*it); strncpy_s(name, 11, str.c_str(), 10); ++it;  n++; if (it == tokens.end()) throw n;
+		str = trim(*it); strncpy_s(sNode, 11, str.c_str(), 10); ++it; n++; if (it == tokens.end()) throw n;
+		str = trim(*it); strncpy_s(eNode, 11, str.c_str(), 10); ++it; n++; if (it == tokens.end()) throw n;
+		length = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		Vmax = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		Capa = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		QV = std::stoi(*it); ++it; n++; if (it == tokens.end()) throw n;
+		for (size_t i = 0; i < 10; i++) {
+			ways[i] = (*it)[0]; ++it; n++; if (it == tokens.end()) throw n;
+		}
+		for (size_t r = 0; r < 2; r++) {
+			result[r].avSp = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			result[r].ltSp = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			result[r].VCR = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			result[r].Vol = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			for (size_t i = 0; i < 10; i++) {
+				result[r].inVol[i] = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+				result[r].thVol[i] = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+				result[r].btVol[i] = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			}
+			result[r].ATL = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			for (size_t i = 0; i < 6; i++) {
+				result[r].trVol[i] = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+			}
+		}
+		if ((*it) == "") linktype = '0'; else linktype = (*it)[0]; ++it; n++; if (it == tokens.end()) throw n;
+		if ((*it) == "" || (*it)[0] == '0') evaluation = true; else evaluation = false;
+		++it; n++; if (it == tokens.end()) throw n;
+		if ((*it) == "") display = '0'; else display = (*it)[0]; ++it; n++; if (it == tokens.end()) throw n;
+		if ((*it) == "") aFlag1 = ' '; else aFlag1 = (*it)[0];  ++it; n++;  if (it == tokens.end()) throw n;
+		nFlag2 = std::stoi(*it); ++it; n++; if (it == tokens.end()) throw n;
+		nFlag3 = std::stoi(*it); ++it; n++; if (it == tokens.end()) throw n;
+		for (size_t i = 0; i < 2 && i < (*it).length(); i++) {
+			aFlag4[i] = (*it)[i];
+		}
+		++it; n++; if (it == tokens.end()) throw n;
+		for (size_t i = 0; i < 3 && (*it).length(); i++) {
+			aFlag5[i] = (*it)[i];
+		}
+		++it; n++; if (it == tokens.end()) throw n; // reserved string
+		++it; n++; if (it == tokens.end()) throw n;
+
+		iX = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		iY = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		jX = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		jY = std::stof(*it); ++it; n++; if (it == tokens.end()) throw n;
+		dummy = std::stoi(*it);
+		if (dummy > 0) {
+			clear_dummy_nodes(dummy);
+			for (int i = 0; i < dummy; i++) {
+				++it; n++; if (it == tokens.end()) throw n;
+				dX[i] = std::stof(*it);
+				++it; n++; if (it == tokens.end()) throw n;
+				dY[i] = std::stof(*it);
+			}
+
+		}
+	}
+	catch (int e) {
+		throw std::runtime_error("COL=" + std::to_string(e));
+	}
+	catch (const std::exception& e) {
+		std::string err = e.what();
+		throw std::runtime_error(err + " COL=" + std::to_string(n));
+	}
+/*
+
 	std::vector<char> vec(strlen(buf)+1);
 	vec[strlen(buf)] = '\0';
 	for (size_t i = 0; i < strlen(buf); i++) vec[i] = buf[i];
@@ -381,6 +455,7 @@ void IRELinkV2::ReadCSV(const char* buf){
 	catch (int e) {
 		throw std::runtime_error("IRE CSV:" + std::to_string(e));
 	}
+*/
 }
 /////////////////////////////////////////////////////////////////////////////
 // Persons (both)
@@ -493,6 +568,25 @@ void IRELinkV2::WriteCSV(FILE* fp) {
 	fprintf(fp,"\n");
 }
 //------------------------------------------------------------------------------
+// Write link data as Version 4
+//------------------------------------------------------------------------------
+void IRELinkV2::WriteAsV4(FILE* fp) {
+	fprintf(fp, "%s,%s,%s,%g,%g,%g,%d,", name, sNode, eNode, length, Vmax, Capa, QV);
+	for (int i = 0; i < 10; i++) fprintf(fp, "%c,", ways[i]);
+	result[0].WriteCSV(fp);
+	result[1].WriteCSV(fp);
+	if (evaluation) fprintf(fp, "%c,0,", linktype); else fprintf(fp, "%c,1,", linktype);
+	fprintf(fp, "%c,%c,%d,%d,", display, aFlag1, nFlag2, nFlag3);
+	fprintf(fp, "%c%c,%c%c%c,", aFlag4[0], aFlag4[1], aFlag5[0], aFlag5[1], aFlag5[2]);
+	fprintf(fp, ",,,,");  // Flag 6-9
+	fprintf(fp, "%.7g,%.7g,%.7g,%.7g,", iX, iY, jX, jY);
+	fprintf(fp, "%d", dummy);
+	for (int i = 0; i < dummy; i++) {
+		fprintf(fp, ",%.7g,%.7g", dX[i], dY[i]);
+	}
+	fprintf(fp, "\n");
+}
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 StradaIRE::StradaIRE(){
@@ -586,7 +680,9 @@ void StradaIRE::Read(const char* fname){
         if (buff.length() < 5) throw(1);
 		if (buff.compare(0, 3, "IRE") != 0) throw(1);
         version = buff[3];
+		if (version != '2' && version != '4') throw(1);
 		if (buff[4] == '*') csv = true; else csv = false;
+		if (version == '4') csv = true;
 		comment = buff.substr(5);
 		if (std::getline(ifs, buff).fail()) throw(2);
 		try {
@@ -674,38 +770,47 @@ void StradaIRE::Write(FILE* fp){
 	}
 	nNode = static_cast<int>(node_table.size());
 
-	if( csv ) fprintf(fp, "IRE2* ");
-	else fprintf(fp,"IRE2 ");
+	if (version == '2') {
+		if (csv) fprintf(fp, "IRE2* ");
+		else fprintf(fp, "IRE2 ");
+	}
+	else if (version == '4') {
+		fprintf(fp, "IRE4*,.");
+		csv = true;
+	}
 
 	fprintf(fp, "%s\n", comment.c_str());
-
-	if ( csv ) {
-		fprintf(fp,"%d,%d,%d,",nLink, nNode, nMode);
-		for(int i=0; i < 5; i++) fprintf(fp,"%f,",Ranks[i]);
+	if (csv) {
+		fprintf(fp, "%d,%d,%d,", nLink, nNode, nMode);
+		for (int i = 0; i < 5; i++) fprintf(fp, "%f,", Ranks[i]);
 		fprintf(fp, "%d,", coordinate);
-		for(int i=0; i < 9; i++) fprintf(fp, "%f,%f,",APC[i], PCU[i]);
+		for (int i = 0; i < 9; i++) fprintf(fp, "%f,%f,", APC[i], PCU[i]);
 		fprintf(fp, "%f,%f\n", APC[9], PCU[9]);
-		for(int i=0; i < nLink; i++) links[i]->WriteCSV(fp);
-
-	} else {
-		fprintf(fp,"%5d%5d%5d",nLink,nNode,nMode);
-		for(int i=0; i < 5; i++) {
-			fixfloat(buff, Ranks[i], 5);
-			fprintf(fp,"%5s" ,buff);
+		if( version == '2')
+			for (int i = 0; i < nLink; i++) links[i]->WriteCSV(fp);
+		else {
+			for (int i = 0; i < nLink; i++) links[i]->WriteAsV4(fp);
 		}
 
-		fprintf(fp,"%1d    ", coordinate);
-		for(int i=0; i < 10; i++){
-			fixfloat(buff, APC[i], 5);
-			fprintf(fp,"%s",buff);
-			fixfloat(buff, PCU[i], 5);
-			fprintf(fp,"%s",buff);
-		}
-		fprintf(fp,"\n");
-
-
-		for(int i=0; i < nLink; i++) links[i]->Write(fp);
 	}
+	else {
+		fprintf(fp, "%5d%5d%5d", nLink, nNode, nMode);
+		for (int i = 0; i < 5; i++) {
+			fixfloat(buff, Ranks[i], 5);
+			fprintf(fp, "%5s", buff);
+		}
+
+		fprintf(fp, "%1d    ", coordinate);
+		for (int i = 0; i < 10; i++) {
+			fixfloat(buff, APC[i], 5);
+			fprintf(fp, "%s", buff);
+			fixfloat(buff, PCU[i], 5);
+			fprintf(fp, "%s", buff);
+		}
+		fprintf(fp, "\n");
+		for (int i = 0; i < nLink; i++) links[i]->Write(fp);
+	}
+
 }
 ////////////////////////////////////////////////////////////////////////////////
 //  Save IRE file as fname

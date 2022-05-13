@@ -36,7 +36,7 @@ bool fratar::init(int nZone) {
 				data[i * nZone + j] = 0;
 			}
 		}
-	} catch (std::bad_alloc) {
+	} catch (std::bad_alloc& e) {
 		return false;
 	}
 

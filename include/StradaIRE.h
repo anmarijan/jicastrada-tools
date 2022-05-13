@@ -66,6 +66,7 @@ public:
 	void ReadCSV(const char* str);
 	void Write(FILE* fp);
 	void WriteCSV(FILE* fp);
+	void WriteAsV4(FILE* fp);
 
 	friend void intrusive_ptr_add_ref(IRELinkV2* p);
 	friend void intrusive_ptr_release(IRELinkV2* p);

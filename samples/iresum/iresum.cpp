@@ -10,7 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <new>
-//#include <float.h>
+#include <cfloat>
 //---------------------------------------------------------------------------
 #include "StradaIRE.h"
 #include "StradaPAR.h"
@@ -158,6 +158,7 @@ int main(int argc, char* argv[])
 	notify(vm);
 	if (vm.count("help")) {
 		std::cout << description << "\n";
+		return (1);
 	}
 	if (vm.count("PAR")) {
 		std::string par_file = vm["PAR"].as<std::string>();
@@ -168,8 +169,8 @@ int main(int argc, char* argv[])
 				else sp_adj[i] = s_par.sp_modify[i];
 			}
 		}
-		catch (std::runtime_error& ) {
-			fprintf(stderr, "Cannot read %s.\n", par_file.c_str());
+		catch (const std::runtime_error& e) {
+			printf("%s\n", e.what());
 		}
 	}
 	if (vm.count("exclude")) {
@@ -237,9 +238,9 @@ int main(int argc, char* argv[])
     try {
         s_ire.Read(argv[1]);
     } catch (std::runtime_error& e) {
-		fprintf(stderr,"Cannot read file %s. \nException: %s ", argv[1], e.what() );
-		fprintf(stderr,"Message: %s\n", s_ire.msg.c_str());
-		exit(1);
+		printf("Cannot read file %s. \nException: %s ", argv[1], e.what() );
+		printf("Message: %s\n", s_ire.msg.c_str());
+		return(1);
 	}
 
 	for(int i=0; i < 10; i++ ) {

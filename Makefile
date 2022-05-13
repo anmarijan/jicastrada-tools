@@ -1,7 +1,7 @@
-CC     = g++
-AR     = ar
-ARFLAG = crs
-CFLAGS  = -std=c++1y -Wall -Iinclude/
+CXX     = g++
+AR      = ar
+ARFLAGS = crs
+CDFLAGS = -std=c++1y -Wall -Iinclude/
 
 OBJDIR = src/
 OBJS= $(OBJDIR)tool.o \
@@ -21,9 +21,9 @@ LFILE = lib/libstradatool.a
 all: $(LFILE) $(OBJS)
 
 .cpp.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CDFLAGS) -c $< -o $@
 
 $(LFILE) : $(OBJS)
-	$(AR) $(ARFLAG) $(LFILE) $(OBJS)
+	$(AR) $(ARFLAGS) $(LFILE) $(OBJS)
 
 

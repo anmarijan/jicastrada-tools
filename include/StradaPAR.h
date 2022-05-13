@@ -154,6 +154,7 @@ public:
 	StradaPAR();
 	int Read(FILE* fp);
 	void Read(const char* file_name);
+	bool ReadV4(const char* fname, int& line_number);
 
 	void Write(FILE* fp);
 	void Write(const char* file_name);
